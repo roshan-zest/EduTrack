@@ -1,0 +1,25 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createTeachingLogData, getTeachingLogsData } from "@/lib/data-access";
+
+export async function GET() {
+  const result = await getTeachingLogsData();
+  return NextResponse.json({
+    success: true,
+    source: result.source,
+    data: result.data
+  });
+}
+
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+  const result = await createTeachingLogData(body);
+
+  return NextResponse.json(
+    {
+      success: true,
+      source: result.source,
+      data: result.data
+    },
+    { status: 201 }
+  );
+}
