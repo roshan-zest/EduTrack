@@ -27,9 +27,9 @@ export default async function AdminDashboardPage() {
       <AdminWorkspaceNav />
 
       <section className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
-        <StatCard label="Total Teachers" value={String(teacherOnly.length)} caption="Faculty members currently active in the system" />
-        <StatCard label="Classes Conducted" value={String(teachingLogs.length)} caption="Live logs coming from the API-backed teaching activity feed" />
-        <StatCard label="Total Hours Taught" value={`${totalHours.toFixed(1)} hrs`} caption="Instructional time tracked across all faculty" />
+        <StatCard label="Total Teachers" value={String(teacherOnly.length)} caption="Faculty members currently active in the system" tone="primary" icon="◉" trend="+12% this month" />
+        <StatCard label="Classes Conducted" value={String(teachingLogs.length)} caption="Live logs coming from the API-backed teaching activity feed" tone="neutral" icon="▣" trend="Updated live" />
+        <StatCard label="Total Hours Taught" value={`${totalHours.toFixed(1)} hrs`} caption="Instructional time tracked across all faculty" tone="success" icon="↗" trend="Healthy coverage" />
       </section>
 
       <section className="mt-8 grid gap-4 xl:grid-cols-3">
@@ -38,18 +38,21 @@ export default async function AdminDashboardPage() {
           title="Curriculum Catalog Manager"
           description="Control programs, semesters, sections, and subjects in a dedicated workspace with inline editing."
           href="/admin/curriculum"
+          accent="from-sky-500/18 via-white to-indigo-500/8"
         />
         <AdminModuleCard
           eyebrow="Module 02"
           title="Activity Review"
           description="Inspect the latest faculty logs in a cleaner review view without mixing in curriculum tools."
           href="/admin/activity"
+          accent="from-emerald-500/14 via-white to-sky-500/8"
         />
         <AdminModuleCard
           eyebrow="Module 03"
           title="Analytics & Alerts"
           description="Track teaching hour distribution, methodology patterns, and system alerts in one focused page."
           href="/admin/insights"
+          accent="from-violet-500/16 via-white to-pink-500/10"
         />
       </section>
 

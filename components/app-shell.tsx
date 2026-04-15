@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ReactNode } from "react";
 
 type AppShellProps = {
@@ -9,10 +12,18 @@ type AppShellProps = {
 };
 
 export function AppShell({ title, subtitle, role, children }: AppShellProps) {
+  const pathname = usePathname();
+  const navItems = [
+    { href: "/", label: "Home", icon: "◫" },
+    { href: "/teacher", label: "Teacher Dashboard", icon: "◎" },
+    { href: "/logs/new", label: "Submit Daily Log", icon: "✦" },
+    { href: "/admin", label: "Admin Dashboard", icon: "▣" }
+  ];
+
   return (
     <div className="fais-shell min-h-screen px-4 py-4 md:px-6 md:py-6">
       <div className="mx-auto flex max-w-[1600px] flex-col gap-6 xl:flex-row">
-        <div className="glass-panel rounded-[1.6rem] p-3 xl:hidden">
+        <div className="glass-panel noise-overlay rounded-[1.6rem] p-3 xl:hidden">
           <div className="flex items-center justify-between gap-4 px-3 py-2">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.32em] text-orange-500">FAIS</p>
@@ -22,24 +33,30 @@ export function AppShell({ title, subtitle, role, children }: AppShellProps) {
           </div>
 
           <nav className="mt-3 grid gap-2 sm:grid-cols-2">
-            {[
-              { href: "/", label: "Home" },
-              { href: "/teacher", label: "Teacher Dashboard" },
-              { href: "/logs/new", label: "Submit Daily Log" },
-              { href: "/admin", label: "Admin Dashboard" }
-            ].map((item) => (
+            {navItems.map((item) => {
+              const active = pathname === item.href || (item.href === "/admin" && pathname.startsWith("/admin"));
+
+              return (
               <Link
                 key={item.href}
-                className="rounded-[1.1rem] border border-white/60 bg-white/60 px-4 py-3 text-sm text-slate-700 transition hover:bg-white"
+                className={`rounded-[1.1rem] border px-4 py-3 text-sm transition ${
+                  active
+                    ? "border-slate-800 bg-slate-800 text-white"
+                    : "border-white/60 bg-white/60 text-slate-700 hover:bg-white"
+                }`}
                 href={item.href}
               >
-                {item.label}
+                <span className="flex items-center gap-3">
+                  <span className={`text-sm ${active ? "text-sky-200" : "text-slate-400"}`}>{item.icon}</span>
+                  {item.label}
+                </span>
               </Link>
-            ))}
+              );
+            })}
           </nav>
         </div>
 
-        <aside className="glass-panel hidden w-[268px] shrink-0 rounded-[2rem] p-5 lg:flex lg:flex-col xl:w-[292px] xl:p-6">
+        <aside className="glass-panel noise-overlay hidden w-[268px] shrink-0 rounded-[2rem] p-5 lg:flex lg:flex-col xl:w-[292px] xl:p-6">
           <div className="grid-surface rounded-[1.75rem] p-6">
             <p className="text-sm font-semibold uppercase tracking-[0.38em] text-orange-500">FAIS</p>
             <h1 className="mt-4 text-[2.15rem] font-semibold tracking-[-0.04em] text-slate-800">EduTrack</h1>
@@ -49,38 +66,44 @@ export function AppShell({ title, subtitle, role, children }: AppShellProps) {
           </div>
 
           <nav className="mt-6 space-y-2 text-sm text-slate-700">
-            {[
-              { href: "/", label: "Home" },
-              { href: "/teacher", label: "Teacher Dashboard" },
-              { href: "/logs/new", label: "Submit Daily Log" },
-              { href: "/admin", label: "Admin Dashboard" }
-            ].map((item, index) => (
+            {navItems.map((item) => {
+              const active = pathname === item.href || (item.href === "/admin" && pathname.startsWith("/admin"));
+
+              return (
               <Link
                 key={item.href}
-                className={`block rounded-[1.25rem] px-4 py-3.5 transition ${
-                  index === 0
+                className={`block rounded-[1.25rem] px-4 py-3.5 card-hover ${
+                  active
                     ? "bg-slate-800 text-white soft-ring"
-                    : "border border-white/50 bg-white/40 text-slate-600 hover:bg-white/70"
+                    : "border border-white/50 bg-white/40 text-slate-600 hover:bg-white/80"
                 }`}
                 href={item.href}
               >
-                {item.label}
+                <span className="flex items-center gap-3">
+                  <span className={`text-sm ${active ? "text-sky-200" : "text-slate-400"}`}>{item.icon}</span>
+                  <span>{item.label}</span>
+                </span>
               </Link>
-            ))}
+              );
+            })}
           </nav>
 
-          <div className="mt-auto rounded-[1.75rem] bg-gradient-to-br from-emerald-100 to-sky-100 p-5">
+          <div className="mt-auto rounded-[1.75rem] bg-gradient-to-br from-emerald-100 via-white to-sky-100 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-700">Signed In As</p>
             <p className="mt-4 text-[1.75rem] font-semibold tracking-[-0.03em] text-slate-800">{role}</p>
             <p className="mt-2 text-sm leading-7 text-slate-600">
               API-backed prototype with a Supabase-ready server layer and local development fallback.
             </p>
+            <div className="mt-4 flex items-center gap-2 text-xs uppercase tracking-[0.28em] text-slate-500">
+              <span className="status-dot bg-emerald-500" />
+              Live workspace
+            </div>
           </div>
         </aside>
 
         <main className="min-w-0 flex-1">
           <div className="glass-panel rounded-[2.25rem] p-4 md:p-6">
-            <div className="glass-panel-strong flex flex-col gap-5 rounded-[1.85rem] px-5 py-5 md:px-7 md:py-6">
+            <div className="glass-panel-strong noise-overlay flex flex-col gap-5 rounded-[1.85rem] px-5 py-5 md:px-7 md:py-6">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold uppercase tracking-[0.34em] text-orange-500">{role} Workspace</p>
@@ -90,7 +113,11 @@ export function AppShell({ title, subtitle, role, children }: AppShellProps) {
 
                 <div className="glass-panel w-full rounded-[1.5rem] px-5 py-4 md:w-auto xl:min-w-[280px]">
                   <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">System Status</p>
-                  <p className="mt-2 text-base font-medium tracking-[-0.02em] text-slate-700">Clean UI refresh and database-ready workflow</p>
+                  <p className="mt-2 text-base font-medium tracking-[-0.02em] text-slate-700">Premium dashboard refresh and database-ready workflow</p>
+                  <div className="mt-3 flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
+                    <span className="status-dot bg-sky-500" />
+                    Design system active
+                  </div>
                 </div>
               </div>
             </div>

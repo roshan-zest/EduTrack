@@ -21,9 +21,9 @@ export default async function AdminInsightsPage() {
       <AdminWorkspaceNav />
 
       <section className="mt-8 grid gap-4 sm:grid-cols-2 2xl:grid-cols-3">
-        <StatCard label="Hours Tracked" value={`${totalHours.toFixed(1)} hrs`} caption="Calculated from teaching logs in the current feed" />
-        <StatCard label="Teachers In Charts" value={String(chartData.length)} caption="Faculty members represented in workload analytics" />
-        <StatCard label="Active Alerts" value={String(alerts.length)} caption="System-generated warnings requiring admin attention" />
+        <StatCard label="Hours Tracked" value={`${totalHours.toFixed(1)} hrs`} caption="Calculated from teaching logs in the current feed" tone="primary" icon="↗" trend="Live metric" />
+        <StatCard label="Teachers In Charts" value={String(chartData.length)} caption="Faculty members represented in workload analytics" tone="neutral" icon="◎" trend="Coverage map" />
+        <StatCard label="Active Alerts" value={String(alerts.length)} caption="System-generated warnings requiring admin attention" tone="warning" icon="!" trend="Needs review" />
       </section>
 
       <section className="mt-8 grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">

@@ -28,9 +28,9 @@ export function AdminWorkspaceNav() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`rounded-[1.1rem] px-4 py-3 text-sm font-medium transition ${
+                className={`rounded-[1.1rem] px-4 py-3 text-sm font-medium card-hover transition ${
                   active
-                    ? "bg-slate-800 text-white"
+                    ? "bg-slate-800 text-white soft-ring"
                     : "border border-slate-200 bg-white/70 text-slate-600 hover:bg-white"
                 }`}
               >

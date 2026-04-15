@@ -20,12 +20,12 @@ export default function TeacherDashboardPage() {
       role="Teacher"
     >
       <section className="grid gap-4 md:grid-cols-3">
-        <StatCard label="Department" value={teacher.department} caption="Your current academic unit" />
-        <StatCard label="Classes Logged" value={String(metrics.totalClasses)} caption="Total teaching sessions captured this cycle" />
-        <StatCard label="Hours Taught" value={`${metrics.totalHours} hrs`} caption="Tracked instructional time for this period" />
+        <StatCard label="Department" value={teacher.department} caption="Your current academic unit" tone="primary" icon="◎" trend="Assigned faculty" />
+        <StatCard label="Classes Logged" value={String(metrics.totalClasses)} caption="Total teaching sessions captured this cycle" tone="neutral" icon="▣" trend="Up this term" />
+        <StatCard label="Hours Taught" value={`${metrics.totalHours} hrs`} caption="Tracked instructional time for this period" tone="success" icon="↗" trend="On schedule" />
       </section>
 
-      <section className="mt-8 grid gap-4 md:grid-cols-4">
+      <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <InsightChip label="Consistency" value={metrics.consistencyScore} />
         <InsightChip label="Time Discipline" value={metrics.timeScore} />
         <InsightChip label="Method Diversity" value={metrics.diversityScore} />
@@ -33,9 +33,12 @@ export default function TeacherDashboardPage() {
       </section>
 
       <section className="mt-8">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-xl font-semibold text-slateBlue">Recent Teaching Logs</h3>
-          <p className="text-sm text-slate-500">Editable log history ready for API-backed persistence</p>
+        <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h3 className="text-2xl font-semibold tracking-[-0.04em] text-slate-800">Recent Teaching Logs</h3>
+            <p className="mt-2 text-sm leading-7 text-slate-500">A cleaner timeline of your latest classes, topics, and delivery methods.</p>
+          </div>
+          <div className="glass-panel rounded-[1.2rem] px-4 py-3 text-sm text-slate-600">Teacher activity stream</div>
         </div>
         <LogTable logs={personalLogs} />
       </section>
