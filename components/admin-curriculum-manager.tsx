@@ -335,7 +335,7 @@ export function AdminCurriculumManager() {
           </div>
         </div>
 
-        <div className="space-y-5">
+        <div className="space-y-5 2xl:sticky 2xl:top-6 2xl:self-start">
           <div className="glass-panel-strong rounded-[1.75rem] p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-400">Current Semester View</p>
             <div className="mt-3 space-y-4">
@@ -457,12 +457,14 @@ export function AdminCurriculumManager() {
               <div className="grid gap-4 lg:grid-cols-[0.7fr_1.3fr]">
                 <div className="rounded-[1.4rem] bg-white/70 p-5">
                   <p className="text-sm font-semibold text-slate-700">Sections</p>
-                  <div className="mt-4 flex flex-wrap gap-2">
+                  <div className="mt-4 max-h-44 overflow-y-auto pr-1">
+                    <div className="flex flex-wrap gap-2">
                     {(selectedSemester?.sections ?? []).map((section) => (
                       <span key={section.id} className="rounded-full bg-slate-100 px-4 py-2.5 text-sm text-slate-600">
                         {section.name}
                       </span>
                     ))}
+                    </div>
                   </div>
                 </div>
 
@@ -473,7 +475,7 @@ export function AdminCurriculumManager() {
                       {selectedSemesterSubjectCount} active
                     </p>
                   </div>
-                  <div className="mt-4 space-y-3">
+                  <div className="mt-4 max-h-96 space-y-3 overflow-y-auto pr-1">
                     {(selectedSemester?.subjects ?? []).map((subject) => (
                       <div key={subject.id} className="rounded-[1.15rem] bg-slate-100 px-4 py-3 text-sm text-slate-600">
                         {editingSubjectId === subject.id ? (
