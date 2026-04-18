@@ -4,3 +4,7 @@
 node_modules/
 .dev.log
 .dev.err.log
+.env
+.env.local
+.env.*.local
+tsconfig.tsbuildinfo

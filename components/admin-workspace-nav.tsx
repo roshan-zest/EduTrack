@@ -7,7 +7,8 @@ const adminLinks = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/curriculum", label: "Curriculum Catalog Manager" },
   { href: "/admin/activity", label: "Activity Review" },
-  { href: "/admin/insights", label: "Analytics & Alerts" }
+  { href: "/admin/insights", label: "Analytics & Alerts" },
+  { href: "/admin/access", label: "Access Control" }
 ];
 
 export function AdminWorkspaceNav() {

@@ -23,9 +23,26 @@ create table if not exists teaching_logs (
   created_at timestamptz not null default now()
 );
 
+create table if not exists user_roles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  role text not null check (role in ('admin', 'teacher')) default 'teacher',
+  assigned_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 insert into curriculum_catalog (slug, catalog)
 values (
   'default',
   '[]'::jsonb
 )
 on conflict (slug) do nothing;
+
+alter table user_roles enable row level security;
+
+drop policy if exists "Users can view own role" on user_roles;
+create policy "Users can view own role"
+on user_roles
+for select
+to authenticated
+using (auth.uid() = user_id);

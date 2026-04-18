@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 
 type AppShellProps = {
   title: string;
@@ -14,32 +14,70 @@ type AppShellProps = {
 export function AppShell({ title, subtitle, role, children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const navItems = [
-    {
-      href: "/",
-      label: "Home",
-      icon: "◫",
-      isActive: pathname === "/"
-    },
-    {
-      href: "/teacher",
-      label: "Teacher Dashboard",
-      icon: "◎",
-      isActive: pathname.startsWith("/teacher")
-    },
-    {
-      href: "/logs/new",
-      label: "Submit Daily Log",
-      icon: "✦",
-      isActive: pathname.startsWith("/logs")
-    },
-    {
-      href: "/admin",
-      label: "Admin Dashboard",
-      icon: "▣",
-      isActive: pathname.startsWith("/admin")
+  const [canViewAdminNav, setCanViewAdminNav] = useState(role === "Admin");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRole() {
+      try {
+        const response = await fetch("/api/auth/me", { cache: "no-store" });
+        const payload = (await response.json()) as {
+          success?: boolean;
+          role?: "admin" | "teacher" | null;
+        };
+
+        if (!cancelled && payload.success) {
+          setCanViewAdminNav(payload.role === "admin");
+        }
+      } catch {
+        if (!cancelled) {
+          setCanViewAdminNav(role === "Admin");
+        }
+      }
     }
-  ];
+
+    loadRole();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [role]);
+
+  const navItems = useMemo(() => {
+    const baseItems = [
+      {
+        href: "/",
+        label: "Home",
+        icon: "◫",
+        isActive: pathname === "/"
+      },
+      {
+        href: "/teacher",
+        label: "Teacher Dashboard",
+        icon: "◎",
+        isActive: pathname.startsWith("/teacher")
+      },
+      {
+        href: "/logs/new",
+        label: "Submit Daily Log",
+        icon: "✦",
+        isActive: pathname.startsWith("/logs")
+      }
+    ];
+
+    if (canViewAdminNav) {
+      baseItems.push({
+        href: "/admin",
+        label: "Admin Dashboard",
+        icon: "▣",
+        isActive: pathname.startsWith("/admin")
+      });
+    }
+
+    return baseItems;
+  }, [canViewAdminNav, pathname]);
+
   const activeNavItem = navItems.find((item) => item.isActive) ?? navItems[0];
 
   return (

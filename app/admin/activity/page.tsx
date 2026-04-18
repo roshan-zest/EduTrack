@@ -1,9 +1,12 @@
 import { AppShell } from "@/components/app-shell";
 import { AdminWorkspaceNav } from "@/components/admin-workspace-nav";
 import { LogTable } from "@/components/log-table";
+import { requireAdminPage } from "@/lib/auth";
 import { getTeachingLogsData } from "@/lib/data-access";
 
 export default async function AdminActivityPage() {
+  await requireAdminPage();
+
   const logResult = await getTeachingLogsData();
 
   return (

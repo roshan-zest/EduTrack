@@ -3,11 +3,14 @@ import { AppShell } from "@/components/app-shell";
 import { AdminWorkspaceNav } from "@/components/admin-workspace-nav";
 import { ActivityTrendChart, MethodologyChart, WorkloadChart } from "@/components/charts";
 import { StatCard } from "@/components/stat-card";
+import { requireAdminPage } from "@/lib/auth";
 import { buildTeacherHours, durationHours } from "@/lib/admin-metrics";
 import { getTeachingLogsData } from "@/lib/data-access";
 import { activityTrend, alerts, methodologyDistribution } from "@/lib/mock-data";
 
 export default async function AdminInsightsPage() {
+  await requireAdminPage();
+
   const logResult = await getTeachingLogsData();
   const totalHours = logResult.data.reduce((sum, entry) => sum + durationHours(entry.startTime, entry.endTime), 0);
   const chartData = buildTeacherHours(logResult.data);

@@ -71,6 +71,12 @@ a {
   text-decoration: none;
 }
 
+.top-nav-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+
 .fais-shell {
   position: relative;
   overflow-x: clip;

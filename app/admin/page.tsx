@@ -3,6 +3,7 @@ import { AdminModuleCard } from "@/components/admin-module-card";
 import { AppShell } from "@/components/app-shell";
 import { AdminWorkspaceNav } from "@/components/admin-workspace-nav";
 import { StatCard } from "@/components/stat-card";
+import { requireAdminPage } from "@/lib/auth";
 import { getTeachingLogsData } from "@/lib/data-access";
 import { buildTeacherHours, durationHours } from "@/lib/admin-metrics";
 import {
@@ -12,6 +13,8 @@ import {
 } from "@/lib/mock-data";
 
 export default async function AdminDashboardPage() {
+  await requireAdminPage();
+
   const logResult = await getTeachingLogsData();
   const teachingLogs = logResult.data;
   const teacherOnly = teachers.filter((entry) => entry.role === "teacher");
@@ -32,7 +35,7 @@ export default async function AdminDashboardPage() {
         <StatCard label="Total Hours Taught" value={`${totalHours.toFixed(1)} hrs`} caption="Instructional time tracked across all faculty" tone="success" icon="↗" trend="Healthy coverage" />
       </section>
 
-      <section className="mt-8 grid gap-4 xl:grid-cols-3">
+      <section className="mt-8 grid gap-4 xl:grid-cols-2 2xl:grid-cols-4">
         <AdminModuleCard
           eyebrow="Module 01"
           title="Curriculum Catalog Manager"
@@ -53,6 +56,13 @@ export default async function AdminDashboardPage() {
           description="Track teaching hour distribution, methodology patterns, and system alerts in one focused page."
           href="/admin/insights"
           accent="from-violet-500/16 via-white to-pink-500/10"
+        />
+        <AdminModuleCard
+          eyebrow="Module 04"
+          title="Access Control"
+          description="Assign admin roles so only authorized users can access the admin workspace."
+          href="/admin/access"
+          accent="from-amber-500/14 via-white to-orange-500/10"
         />
       </section>
 
