@@ -11,7 +11,6 @@ export function SignInForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [message, setMessage] = useState("");
 
   const nextRoute = useMemo(() => {
@@ -45,17 +44,6 @@ export function SignInForm() {
     try {
       const supabase = getSupabaseBrowserClient();
 
-      if (mode === "sign-up") {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) {
-          throw error;
-        }
-
-        setMessage("Account created. If email confirmation is enabled, verify your inbox before signing in.");
-        setLoading(false);
-        return;
-      }
-
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error || !data.session) {
         throw error ?? new Error("Missing session");
@@ -79,27 +67,10 @@ export function SignInForm() {
       <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-500">Secure Access</p>
       <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-800">Sign in to EduTrack</h1>
       <p className="mt-3 text-sm leading-7 text-slate-500">
-        Admin panel access is role-gated through Supabase. Only users with the admin role can open admin modules.
+        Use your existing account to sign in. Admin access is role-gated through Supabase, and login works as often as you need.
       </p>
 
-      <div className="mt-5 flex rounded-[1rem] bg-slate-100 p-1">
-        <button
-          type="button"
-          className={`flex-1 rounded-[0.8rem] px-3 py-2 text-sm font-semibold ${mode === "sign-in" ? "bg-slate-800 text-white" : "text-slate-600"}`}
-          onClick={() => setMode("sign-in")}
-        >
-          Sign In
-        </button>
-        <button
-          type="button"
-          className={`flex-1 rounded-[0.8rem] px-3 py-2 text-sm font-semibold ${mode === "sign-up" ? "bg-slate-800 text-white" : "text-slate-600"}`}
-          onClick={() => setMode("sign-up")}
-        >
-          Sign Up
-        </button>
-      </div>
-
-      <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
+      <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
         <label className="flex flex-col gap-2">
           <span className="text-sm font-medium text-slate-700">Email</span>
           <input
@@ -129,7 +100,7 @@ export function SignInForm() {
           disabled={loading}
           className="w-full rounded-[1.1rem] bg-slate-800 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? "Please wait..." : mode === "sign-up" ? "Create account" : "Sign in"}
+          {loading ? "Please wait..." : "Sign in"}
         </button>
       </form>
 

@@ -12,11 +12,11 @@ export default function SignInPage() {
             Role-protected academic workspace
           </h2>
           <p className="mt-4 max-w-xl text-sm leading-8 text-slate-600 md:text-base">
-            Teachers and admins can use the same sign-in flow. Admin routes are locked unless your account has the admin role.
+            Teachers and admins can use the same sign-in flow. This page is for existing accounts, and admin routes remain locked unless your account has the admin role.
           </p>
 
           <div className="mt-7 space-y-3 text-sm text-slate-600">
-            <p>1. Sign in or create an account.</p>
+            <p>1. Sign in with your existing account.</p>
             <p>2. Add your email to INITIAL_ADMIN_EMAIL in environment once for bootstrap admin access.</p>
             <p>3. Use Admin Access Control to grant admin role to other users.</p>
           </div>
