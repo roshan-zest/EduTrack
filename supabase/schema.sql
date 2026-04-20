@@ -31,6 +31,22 @@ create table if not exists user_roles (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists access_requests (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  email text not null unique,
+  access_code text not null unique,
+  desired_role text not null check (desired_role in ('admin', 'teacher')) default 'teacher',
+  status text not null check (status in ('pending', 'approved', 'rejected')) default 'pending',
+  note text,
+  approved_by uuid references auth.users(id),
+  approved_at timestamptz,
+  rejected_by uuid references auth.users(id),
+  rejected_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 insert into curriculum_catalog (slug, catalog)
 values (
   'default',
@@ -39,10 +55,18 @@ values (
 on conflict (slug) do nothing;
 
 alter table user_roles enable row level security;
+alter table access_requests enable row level security;
 
 drop policy if exists "Users can view own role" on user_roles;
 create policy "Users can view own role"
 on user_roles
+for select
+to authenticated
+using (auth.uid() = user_id);
+
+drop policy if exists "Users can view own request" on access_requests;
+create policy "Users can view own request"
+on access_requests
 for select
 to authenticated
 using (auth.uid() = user_id);

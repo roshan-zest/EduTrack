@@ -26,15 +26,15 @@ export function AdminWorkspaceNav() {
   const selectedHref = adminLinks.find((link) => isActive(link.href))?.href ?? "/admin";
 
   return (
-    <div className="glass-panel rounded-[1.6rem] p-3">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <div className="glass-panel rounded-[1.35rem] p-2.5 md:p-3">
+      <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">Admin Modules</p>
-          <p className="mt-2 text-lg font-semibold tracking-[-0.03em] text-slate-800">Structured administration workspace</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Admin Modules</p>
+          <p className="mt-1.5 text-base font-semibold tracking-[-0.02em] text-slate-800 md:text-lg">Structured administration workspace</p>
         </div>
         <div className="w-full lg:hidden">
           <select
-            className="apple-input w-full px-4 py-3 text-sm font-medium"
+            className="apple-input w-full px-3.5 py-2.5 text-sm font-medium"
             value={selectedHref}
             onChange={(event) => router.push(event.target.value)}
           >
@@ -46,7 +46,7 @@ export function AdminWorkspaceNav() {
           </select>
         </div>
 
-        <div className="hidden gap-2 lg:grid lg:grid-cols-2 xl:flex xl:flex-wrap">
+        <div className="hidden gap-1.5 lg:grid lg:grid-cols-2 xl:flex xl:flex-wrap">
           {adminLinks.map((link) => {
             const active = isActive(link.href);
 
@@ -54,7 +54,7 @@ export function AdminWorkspaceNav() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`rounded-[1.1rem] px-4 py-3 text-sm font-medium card-hover transition ${
+                className={`rounded-[0.95rem] px-3 py-2.5 text-xs font-medium card-hover transition sm:text-sm ${
                   active
                     ? "bg-slate-800 text-white soft-ring"
                     : "border border-slate-200 bg-white/70 text-slate-600 hover:bg-white"

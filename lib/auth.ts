@@ -24,6 +24,32 @@ export type AuthContext = {
   role: AppRole;
 };
 
+async function hasApprovedAccess(userId: string, email: string): Promise<boolean> {
+  const bootstrapEmails = parseBootstrapAdminEmails();
+  if (bootstrapEmails.includes(email.toLowerCase())) {
+    return true;
+  }
+
+  const supabase = getSupabaseServerClient();
+  if (!supabase) {
+    return false;
+  }
+
+  const { data, error } = await supabase
+    .from("access_requests")
+    .select("status")
+    .or(`user_id.eq.${userId},email.eq.${email}`)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!error && data?.status === "approved") {
+    return true;
+  }
+
+  return false;
+}
+
 function formatNameFromEmail(email: string) {
   const localPart = email.split("@")[0] ?? "";
   const normalized = localPart.replace(/[._-]+/g, " ").trim();
@@ -70,6 +96,28 @@ async function resolveRole(userId: string, email: string): Promise<AppRole> {
     return "admin";
   }
 
+  const requestedRoleResult = await supabase
+    .from("access_requests")
+    .select("desired_role, status")
+    .or(`user_id.eq.${userId},email.eq.${email}`)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!requestedRoleResult.error && requestedRoleResult.data?.status === "approved") {
+    const fallbackRole: AppRole = requestedRoleResult.data.desired_role === "admin" ? "admin" : "teacher";
+
+    await supabase.from("user_roles").upsert(
+      {
+        user_id: userId,
+        role: fallbackRole
+      },
+      { onConflict: "user_id" }
+    );
+
+    return fallbackRole;
+  }
+
   return "teacher";
 }
 
@@ -90,6 +138,11 @@ export async function getAuthContextFromToken(token: string | undefined): Promis
 
   const email = data.user.email ?? "";
   if (!email) {
+    return null;
+  }
+
+  const approved = await hasApprovedAccess(data.user.id, email);
+  if (!approved) {
     return null;
   }
 

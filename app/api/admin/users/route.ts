@@ -4,8 +4,16 @@ import { ACCESS_TOKEN_COOKIE, getAuthContextFromToken } from "@/lib/auth";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 const updateRoleSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.string().uuid().optional(),
+  email: z.string().email().optional(),
   role: z.enum(["admin", "teacher"])
+}).superRefine((value, context) => {
+  if (!value.userId && !value.email) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Either userId or email is required"
+    });
+  }
 });
 
 export async function GET(request: NextRequest) {
@@ -79,11 +87,51 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  const { userId, role } = parsed.data;
+  const { role } = parsed.data;
+  let targetUserId = parsed.data.userId ?? null;
+
+  if (!targetUserId && parsed.data.email) {
+    const usersResult = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    if (usersResult.error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: usersResult.error.message
+        },
+        { status: 500 }
+      );
+    }
+
+    const matchedUser = usersResult.data.users.find(
+      (user) => (user.email ?? "").toLowerCase() === parsed.data.email?.toLowerCase()
+    );
+
+    if (!matchedUser) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "User account not found for this email"
+        },
+        { status: 404 }
+      );
+    }
+
+    targetUserId = matchedUser.id;
+  }
+
+  if (!targetUserId) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Unable to resolve target user"
+      },
+      { status: 400 }
+    );
+  }
 
   const { error } = await supabase.from("user_roles").upsert(
     {
-      user_id: userId,
+      user_id: targetUserId,
       role,
       assigned_by: auth.user.id,
       updated_at: new Date().toISOString()

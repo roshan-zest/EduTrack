@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { getDevCatalog, getDevLogs, setDevCatalog, addDevLog } from "@/lib/dev-store";
-import { curriculumCatalog } from "@/lib/mock-data";
+import { curriculumCatalog, teachingLogs as mockTeachingLogs } from "@/lib/mock-data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { CurriculumCatalog, TeachingLog } from "@/lib/types";
 
@@ -115,6 +115,10 @@ export async function getTeachingLogsData(): Promise<{ data: TeachingLog[]; sour
 
   if (error || !data) {
     return { data: getDevLogs(), source: "memory" };
+  }
+
+  if (!data.length) {
+    return { data: mockTeachingLogs, source: "memory" };
   }
 
   return {

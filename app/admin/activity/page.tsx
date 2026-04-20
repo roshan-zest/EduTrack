@@ -3,6 +3,7 @@ import { AdminWorkspaceNav } from "@/components/admin-workspace-nav";
 import { LogTable } from "@/components/log-table";
 import { requireAdminPage } from "@/lib/auth";
 import { getTeachingLogsData } from "@/lib/data-access";
+import { ExportButton } from "@/components/export-button";
 
 export default async function AdminActivityPage() {
   await requireAdminPage();
@@ -26,6 +27,14 @@ export default async function AdminActivityPage() {
           <div className="glass-panel w-full rounded-[1.25rem] px-4 py-3 text-sm text-slate-600 md:w-auto">
             {logResult.source === "supabase" ? "Synced with Supabase" : "Using local development fallback"}
           </div>
+        </div>
+
+        <div className="mb-5 flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-700">Export All Logs</p>
+            <p className="text-xs text-slate-500">Download teaching logs as CSV for analysis in Power BI or Excel</p>
+          </div>
+          <ExportButton logs={logResult.data} />
         </div>
 
         <LogTable logs={logResult.data} />

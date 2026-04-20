@@ -2,14 +2,34 @@ import { AppShell } from "@/components/app-shell";
 import { InsightChip } from "@/components/insight-chip";
 import { LogTable } from "@/components/log-table";
 import { StatCard } from "@/components/stat-card";
-import { performanceInsights, teachers, teachingLogs } from "@/lib/mock-data";
+import { requireAuthPage } from "@/lib/auth";
+import { durationHours, buildTeacherHours, buildMethodologyDistribution } from "@/lib/admin-metrics";
+import { getTeachingLogsData } from "@/lib/data-access";
+import { teachers } from "@/lib/mock-data";
 
-export default function TeacherDashboardPage() {
-  const teacher = teachers.find((entry) => entry.id === "t1");
-  const metrics = performanceInsights.find((entry) => entry.teacherId === "t1");
-  const personalLogs = teachingLogs.filter((entry) => entry.teacherId === "t1");
+export default async function TeacherDashboardPage() {
+  const auth = await requireAuthPage("/teacher");
+  const logResult = await getTeachingLogsData();
+  const teacher = teachers.find((entry) => entry.email.toLowerCase() === auth.user.email.toLowerCase()) ?? teachers.find((entry) => entry.role === "teacher");
 
-  if (!teacher || !metrics) {
+  const personalLogs = logResult.data.filter((entry) => {
+    if (teacher) {
+      return entry.teacherId === teacher.id || entry.teacherName.toLowerCase() === teacher.name.toLowerCase();
+    }
+
+    return entry.teacherName.toLowerCase() === auth.user.name.toLowerCase();
+  });
+
+  const metrics = {
+    totalClasses: personalLogs.length,
+    totalHours: Number(personalLogs.reduce((sum, entry) => sum + durationHours(entry.startTime, entry.endTime), 0).toFixed(1)),
+    consistencyScore: Math.min(100, 70 + personalLogs.length * 4),
+    timeScore: Math.min(100, 72 + personalLogs.length * 3),
+    diversityScore: Math.min(100, 68 + buildMethodologyDistribution(personalLogs).length * 5),
+    workloadScore: Math.min(100, 70 + buildTeacherHours(personalLogs).length * 2)
+  };
+
+  if (!teacher) {
     return null;
   }
 

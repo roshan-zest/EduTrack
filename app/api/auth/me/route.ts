@@ -10,7 +10,8 @@ export async function GET(request: NextRequest) {
       success: true,
       authenticated: false,
       role: null,
-      email: null
+      email: null,
+      accessStatus: "pending"
     });
   }
 
@@ -26,6 +27,7 @@ export async function GET(request: NextRequest) {
     designation: auth.user.designation ?? null,
     bio: auth.user.bio ?? null,
     createdAt: auth.user.createdAt ?? null,
-    lastSignInAt: auth.user.lastSignInAt ?? null
+    lastSignInAt: auth.user.lastSignInAt ?? null,
+    accessStatus: "approved"
   });
 }

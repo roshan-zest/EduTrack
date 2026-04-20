@@ -4,6 +4,7 @@ export type Teacher = {
   id: string;
   name: string;
   email: string;
+  password?: string;
   department: string;
   role: UserRole;
 };

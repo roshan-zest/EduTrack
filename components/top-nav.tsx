@@ -62,18 +62,19 @@ export function TopNav() {
   }, [pathname]);
 
   const navLinks = useMemo(() => {
-    const links = [
-      { href: "/", label: "Home" },
-      { href: "/teacher", label: "Teacher" },
-      { href: "/logs/new", label: "Daily Log" }
-    ];
+    const links = [{ href: "/", label: "Home" }];
 
-    if (authState.role === "admin") {
-      links.push({ href: "/admin", label: "Admin" });
+    if (!authState.authenticated) {
+      return links;
     }
 
+    links.push({ href: "/teacher", label: "Teacher" }, { href: "/logs/new", label: "Daily Log" });
+
     return links;
-  }, [authState.role]);
+  }, [authState.authenticated]);
+
+  const activeHref =
+    navLinks.find((item) => pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href)))?.href ?? "/";
 
   async function handleSignOut() {
     try {
@@ -98,10 +99,14 @@ export function TopNav() {
     router.refresh();
   }
 
+  if (pathname.startsWith("/signin")) {
+    return null;
+  }
+
   return (
     <header className="top-nav-wrap px-4 pt-4 md:px-6 md:pt-6">
-      <div className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-4 rounded-[1.4rem] border border-slate-200/70 bg-white/80 px-4 py-3 shadow-soft backdrop-blur md:px-5">
-        <div className="flex items-center gap-4">
+      <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-between gap-3 rounded-[1.4rem] border border-slate-200/70 bg-white/85 px-4 py-3 shadow-soft backdrop-blur md:px-5">
+        <div className="flex items-center gap-3 md:gap-4">
           <Link href="/" className="flex items-center gap-2">
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-xs font-bold text-white">SJR</span>
             <span className="text-lg font-semibold tracking-[-0.03em] text-slate-800">EduTrack</span>
@@ -152,6 +157,22 @@ export function TopNav() {
               {authState.loading ? "Loading..." : "Sign In"}
             </Link>
           )}
+        </div>
+
+        <div className="w-full md:hidden">
+          {navLinks.length > 1 ? (
+          <select
+            className="apple-input w-full px-4 py-2.5 text-sm"
+            value={activeHref}
+            onChange={(event) => router.push(event.target.value)}
+          >
+            {navLinks.map((item) => (
+              <option key={item.href} value={item.href}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+          ) : null}
         </div>
       </div>
     </header>
