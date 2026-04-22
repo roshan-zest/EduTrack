@@ -93,7 +93,7 @@ export function SignInForm() {
           if (statusPayload.data?.status === "pending") {
             setMessage("Your request is still pending. Wait for admin approval, then sign in using the access code you received.");
           } else if (statusPayload.data?.status === "approved" && statusPayload.data?.accessCode) {
-            setMessage("Your request is approved. Sign in with your registered password. If your account was auto-created by admin, use the access code as password.");
+            setMessage("Your request is approved. Sign in with your registered password.");
           } else if (statusPayload.data?.status === "not_found") {
             setMessage("No registration request found for this email. Use Register first, then wait for admin approval.");
           } else {
