@@ -46,7 +46,6 @@ export function TeacherListTable({ teacherStats }: TeacherListTableProps) {
               <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">Faculty Name</th>
               <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">Email</th>
               <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">Role</th>
-              <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">Password</th>
               <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600 text-center">Sessions</th>
               <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600 text-center">Hours</th>
               <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600">Last Active</th>
@@ -66,11 +65,6 @@ export function TeacherListTable({ teacherStats }: TeacherListTableProps) {
                   >
                     {teacher.role}
                   </span>
-                </td>
-                <td className="px-4 py-3">
-                  <code className="rounded-[0.45rem] bg-slate-100 px-2 py-1 font-mono text-[11px] font-semibold text-slate-800 tracking-wide">
-                    {teacher.password || "N/A"}
-                  </code>
                 </td>
                 <td className="px-4 py-3 text-center">
                   <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-50 text-xs font-semibold text-blue-700">

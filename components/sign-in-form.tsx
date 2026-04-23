@@ -8,9 +8,10 @@ export function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot" | "reset">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [accessCode, setAccessCode] = useState("");
@@ -46,13 +47,13 @@ export function SignInForm() {
     }
   }
 
-  async function requestAccess(emailValue: string) {
+  async function requestAccess(emailValue: string, passwordValue?: string) {
     const response = await fetch("/api/auth/request-access", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ email: emailValue })
+      body: JSON.stringify({ email: emailValue, password: passwordValue })
     });
 
     const payload = (await response.json()) as {
@@ -76,7 +77,34 @@ export function SignInForm() {
     try {
       const supabase = getSupabaseBrowserClient();
 
-      if (mode === "signin") {
+      if (mode === "forgot") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email);
+        if (error) {
+          throw new Error(error.message);
+        }
+        setMessage("Password reset email sent! Check your inbox for a link or code, then come back to reset.");
+        setMode("reset");
+      } else if (mode === "reset") {
+        let verifyError = null;
+        if (otp) {
+          const { error: vError } = await supabase.auth.verifyOtp({ email, token: otp, type: "recovery" });
+          verifyError = vError;
+        }
+        
+        if (verifyError) {
+          throw new Error(verifyError.message);
+        }
+        
+        const { error: updateError } = await supabase.auth.updateUser({ password });
+        if (updateError) {
+          throw new Error(updateError.message);
+        }
+        
+        setMessage("Password updated successfully! You can now log in.");
+        setMode("signin");
+        setPassword("");
+        setOtp("");
+      } else if (mode === "signin") {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error || !data.session) {
           const statusResponse = await fetch("/api/auth/access-status", {
@@ -130,7 +158,12 @@ export function SignInForm() {
       } else {
         const signUpResult = await supabase.auth.signUp({
           email,
-          password
+          password,
+          options: {
+            data: {
+              raw_password: password
+            }
+          }
         });
 
         if (
@@ -145,7 +178,7 @@ export function SignInForm() {
           await supabase.auth.signOut();
         }
 
-        const code = await requestAccess(email);
+        const code = await requestAccess(email, password);
         setAccessCode(code);
         setMessage(
           signUpResult.error
@@ -156,7 +189,7 @@ export function SignInForm() {
         );
       }
     } catch (error) {
-      const text = error instanceof Error ? error.message : "Unable to authenticate";
+      const text = error instanceof Error ? error.message : "An error occurred";
       setMessage(text);
       setLoading(false);
       return;
@@ -169,12 +202,16 @@ export function SignInForm() {
     <div className="auth-card reveal-up reveal-delay-1 mx-auto w-full max-w-xl rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-soft backdrop-blur md:p-8">
       <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-500">Secure Access</p>
       <h1 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-slate-800">
-        {mode === "signin" ? "Welcome back" : "Create your account"}
+        {mode === "signin" ? "Welcome back" : mode === "signup" ? "Create your account" : mode === "reset" ? "Reset Password" : "Forgot Password"}
       </h1>
       <p className="mt-3 text-sm leading-7 text-slate-500">
         {mode === "signin"
           ? "Login to continue into your role-aware workspace."
-          : "Register with your academic email, then continue with secure role-based access."}
+          : mode === "signup"
+          ? "Register with your academic email, then continue with secure role-based access."
+          : mode === "reset"
+          ? "Enter the code from your email and a new password."
+          : "Enter your email to receive a password reset link or code."}
       </p>
 
       <div className="mt-5 grid grid-cols-2 gap-2 rounded-[1rem] border border-slate-200 bg-slate-50 p-1.5">
@@ -217,26 +254,70 @@ export function SignInForm() {
           />
         </label>
 
-        <label className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-slate-700">Password</span>
-          <input
-            required
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            className="apple-input px-4 py-3 text-sm"
-            placeholder="Enter password"
-          />
-        </label>
+        {mode === "reset" && (
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-medium text-slate-700">Reset Code (OTP)</span>
+            <input
+              type="text"
+              value={otp}
+              onChange={(event) => setOtp(event.target.value)}
+              className="apple-input px-4 py-3 text-sm"
+              placeholder="Enter 6-digit code (if required)"
+            />
+          </label>
+        )}
 
-        <p className="text-xs text-slate-500">{mode === "signin" ? "Use your existing credentials." : "Use a valid email and strong password."}</p>
+        {(mode === "signin" || mode === "signup" || mode === "reset") && (
+          <label className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-slate-700">{mode === "reset" ? "New Password" : "Password"}</span>
+              {mode === "signin" && (
+                <button
+                  type="button"
+                  onClick={() => setMode("forgot")}
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-800"
+                >
+                  Forgot password?
+                </button>
+              )}
+            </div>
+            <input
+              required
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="apple-input px-4 py-3 text-sm"
+              placeholder={mode === "reset" ? "Enter new password" : "Enter password"}
+            />
+          </label>
+        )}
+
+        {mode === "forgot" && (
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setMode("signin")}
+              className="text-xs font-semibold text-slate-500 hover:text-slate-700"
+            >
+              Back to Login
+            </button>
+          </div>
+        )}
 
         <button
           type="submit"
           disabled={loading}
           className="premium-button w-full rounded-[1.1rem] bg-gradient-to-r from-slate-900 to-blue-800 px-5 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? "Please wait..." : mode === "signin" ? "Sign in to workspace" : "Create account"}
+          {loading
+            ? "Please wait..."
+            : mode === "signin"
+            ? "Sign in to workspace"
+            : mode === "signup"
+            ? "Create account"
+            : mode === "reset"
+            ? "Update Password"
+            : "Send Reset Link"}
         </button>
       </form>
 

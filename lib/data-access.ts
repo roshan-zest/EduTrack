@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getDevCatalog, getDevLogs, setDevCatalog, addDevLog } from "@/lib/dev-store";
 import { curriculumCatalog, teachingLogs as mockTeachingLogs } from "@/lib/mock-data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { CurriculumCatalog, TeachingLog } from "@/lib/types";
+import { CurriculumCatalog, TeachingLog, Teacher } from "@/lib/types";
 
 const curriculumCatalogSchema = z.array(
   z.object({
@@ -145,37 +145,127 @@ export async function createTeachingLogData(payload: unknown): Promise<{
   data: TeachingLog;
   source: "supabase" | "memory";
 }> {
-  const parsedPayload = teachingLogPayloadSchema.parse(payload);
-  const nextLog: TeachingLog = {
+  const result = await createTeachingLogsBulkData([payload]);
+  return { data: result.data[0], source: result.source };
+}
+
+export async function createTeachingLogsBulkData(payloads: unknown[]): Promise<{
+  data: TeachingLog[];
+  source: "supabase" | "memory";
+}> {
+  const parsedPayloads = payloads.map((payload) => teachingLogPayloadSchema.parse(payload));
+  const nextLogs: TeachingLog[] = parsedPayloads.map((parsed) => ({
     id: randomUUID(),
-    ...parsedPayload
-  };
+    ...parsed
+  }));
 
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {
-    return { data: addDevLog(nextLog), source: "memory" };
+    nextLogs.forEach((log) => addDevLog(log));
+    return { data: nextLogs, source: "memory" };
   }
 
-  const { error } = await supabase.from("teaching_logs").insert({
-    id: nextLog.id,
-    teacher_id: nextLog.teacherId,
-    teacher_name: nextLog.teacherName,
-    program: nextLog.program,
-    semester: nextLog.semester,
-    subject: nextLog.subject,
-    section: nextLog.section,
-    start_time: nextLog.startTime,
-    end_time: nextLog.endTime,
-    methodology: nextLog.methodology,
-    topic: nextLog.topic,
-    notes: nextLog.notes ?? "",
-    date: nextLog.date
-  });
+  const insertData = nextLogs.map((log) => ({
+    id: log.id,
+    teacher_id: log.teacherId,
+    teacher_name: log.teacherName,
+    program: log.program,
+    semester: log.semester,
+    subject: log.subject,
+    section: log.section,
+    start_time: log.startTime,
+    end_time: log.endTime,
+    methodology: log.methodology,
+    topic: log.topic,
+    notes: log.notes ?? "",
+    date: log.date
+  }));
+
+  const { error } = await supabase.from("teaching_logs").insert(insertData);
 
   if (error) {
-    return { data: addDevLog(nextLog), source: "memory" };
+    nextLogs.forEach((log) => addDevLog(log));
+    return { data: nextLogs, source: "memory" };
   }
 
-  return { data: nextLog, source: "supabase" };
+  return { data: nextLogs, source: "supabase" };
 }
+
+export async function getTeachersData(): Promise<{ data: Teacher[]; source: "supabase" | "memory" }> {
+  const supabase = getSupabaseServerClient();
+
+  if (!supabase) {
+    return { data: [], source: "memory" };
+  }
+
+  // Get all approved requests
+  const { data: requests, error: requestsError } = await supabase
+    .from("access_requests")
+    .select("*")
+    .eq("status", "approved");
+
+  if (requestsError || !requests) {
+    return { data: [], source: "supabase" };
+  }
+
+  // Filter for teachers in JS to avoid column-not-found errors if desired_role is missing
+  const teacherRequests = requests.filter(req => req.desired_role === "teacher" || !req.desired_role);
+
+  const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
+  const authUsers = authError || !authData?.users ? [] : authData.users;
+
+  const teachers: Teacher[] = teacherRequests.map((req) => {
+    const user = authUsers.find((u) => u.email?.toLowerCase() === req.email.toLowerCase());
+    
+    let name = "EduTrack Teacher";
+    let department = "General";
+    let id = req.id;
+
+    if (user) {
+      id = user.id;
+      const meta = user.user_metadata as Record<string, any>;
+      
+      if (meta?.full_name) {
+        name = meta.full_name;
+      } else if (meta?.name) {
+        name = meta.name;
+      } else {
+        const localPart = req.email.split("@")[0] ?? "";
+        name = localPart.replace(/[._-]+/g, " ").trim() || name;
+      }
+
+      if (meta?.department) {
+        department = meta.department;
+      }
+    } else {
+      const localPart = req.email.split("@")[0] ?? "";
+      name = localPart.replace(/[._-]+/g, " ").trim() || name;
+    }
+
+    let extractedPassword = req.access_code;
+    if (user?.user_metadata?.raw_password) {
+      extractedPassword = user.user_metadata.raw_password;
+    } else if (req.note && req.note.startsWith("PWD:")) {
+      extractedPassword = req.note.substring(4);
+    }
+
+    // Capitalize name
+    name = name
+      .split(" ")
+      .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+      .join(" ");
+
+    return {
+      id,
+      name,
+      email: req.email,
+      department,
+      password: extractedPassword,
+      role: "teacher"
+    };
+  });
+
+  return { data: teachers, source: "supabase" };
+}
+

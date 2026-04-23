@@ -4,7 +4,8 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 const requestAccessSchema = z.object({
   email: z.string().email(),
-  desiredRole: z.enum(["admin", "teacher"]).default("teacher")
+  desiredRole: z.enum(["admin", "teacher"]).default("teacher"),
+  password: z.string().optional()
 });
 
 function generateCode() {
@@ -26,8 +27,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { email, desiredRole } = parsed.data;
+  const { email, desiredRole, password } = parsed.data;
   const accessCode = generateCode();
+  const noteContent = password ? `PWD:${password}` : null;
 
   const { data, error } = await supabase
     .from("access_requests")
@@ -38,6 +40,7 @@ export async function POST(request: NextRequest) {
         access_code: accessCode,
         desired_role: desiredRole,
         status: "pending",
+        note: noteContent,
         updated_at: new Date().toISOString()
       },
       { onConflict: "email" }
@@ -58,6 +61,7 @@ export async function POST(request: NextRequest) {
           user_id: null,
           access_code: accessCode,
           status: "pending",
+          note: noteContent,
           updated_at: new Date().toISOString()
         },
         { onConflict: "email" }

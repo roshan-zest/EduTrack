@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createTeachingLogData, getTeachingLogsData } from "@/lib/data-access";
+import { createTeachingLogData, getTeachingLogsData, createTeachingLogsBulkData } from "@/lib/data-access";
 
 export async function GET() {
   const result = await getTeachingLogsData();
@@ -12,7 +12,13 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const result = await createTeachingLogData(body);
+  
+  let result;
+  if (Array.isArray(body)) {
+    result = await createTeachingLogsBulkData(body);
+  } else {
+    result = await createTeachingLogData(body);
+  }
 
   return NextResponse.json(
     {
