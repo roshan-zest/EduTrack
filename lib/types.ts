@@ -7,6 +7,7 @@ export type Teacher = {
   password?: string;
   department: string;
   role: UserRole;
+  isSuspended?: boolean;
 };
 
 export type CurriculumSection = {

@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { DailyLogTable } from "@/components/daily-log-table";
+import { requireAuthPage } from "@/lib/auth";
 
-export default function NewLogPage() {
+export default async function NewLogPage() {
+  const auth = await requireAuthPage("/logs/new");
+
   return (
     <AppShell
       title="Submit Daily Teaching Log"
@@ -24,7 +27,7 @@ export default function NewLogPage() {
       </div>
 
       <div className="w-full">
-        <DailyLogTable />
+        <DailyLogTable teacherId={auth.user.id} teacherName={auth.user.name} />
       </div>
 
       <div className="mt-6">

@@ -6,15 +6,16 @@ import { AdminModuleCard } from "@/components/admin-module-card";
 import { StatCard } from "@/components/stat-card";
 import { ExportButton } from "@/components/export-button";
 import { buildActivityTrend, buildMethodologyDistribution, durationHours } from "@/lib/admin-metrics";
-import { teachers } from "@/lib/mock-data";
-import { TeachingLog } from "@/lib/types";
+
+import { TeachingLog, Teacher } from "@/lib/types";
 
 type AdminDashboardContentProps = {
   teachingLogs: TeachingLog[];
+  teachers: Teacher[];
 };
 
-function resolveLogDepartment(log: TeachingLog) {
-  const matchedTeacher = teachers.find(
+function resolveLogDepartment(log: TeachingLog, activeTeachers: Teacher[]) {
+  const matchedTeacher = activeTeachers.find(
     (entry) =>
       entry.id === log.teacherId ||
       entry.name.toLowerCase() === log.teacherName.toLowerCase()
@@ -39,14 +40,14 @@ function resolveLogDepartment(log: TeachingLog) {
   return "Other";
 }
 
-export function AdminDashboardContent({ teachingLogs }: AdminDashboardContentProps) {
+export function AdminDashboardContent({ teachingLogs, teachers }: AdminDashboardContentProps) {
   const [selectedDepartment, setSelectedDepartment] = useState("All Departments");
 
   const departmentOptions = useMemo(() => {
     const teacherDepartments = teachers
       .filter((entry) => entry.role === "teacher")
       .map((entry) => entry.department);
-    const logDepartments = teachingLogs.map(resolveLogDepartment);
+    const logDepartments = teachingLogs.map((log) => resolveLogDepartment(log, teachers));
 
     return [
       "All Departments",
@@ -59,7 +60,7 @@ export function AdminDashboardContent({ teachingLogs }: AdminDashboardContentPro
       return teachingLogs;
     }
 
-    return teachingLogs.filter((entry) => resolveLogDepartment(entry) === selectedDepartment);
+    return teachingLogs.filter((entry) => resolveLogDepartment(entry, teachers) === selectedDepartment);
   }, [selectedDepartment, teachingLogs]);
 
   const teacherPool = useMemo(() => {

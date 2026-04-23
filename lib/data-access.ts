@@ -222,6 +222,8 @@ export async function getTeachersData(): Promise<{ data: Teacher[]; source: "sup
     let department = "General";
     let id = req.id;
 
+    let isSuspended = false;
+
     if (user) {
       id = user.id;
       const meta = user.user_metadata as Record<string, any>;
@@ -237,6 +239,10 @@ export async function getTeachersData(): Promise<{ data: Teacher[]; source: "sup
 
       if (meta?.department) {
         department = meta.department;
+      }
+      
+      if (user.banned_until) {
+        isSuspended = new Date(user.banned_until).getTime() > Date.now();
       }
     } else {
       const localPart = req.email.split("@")[0] ?? "";
@@ -262,7 +268,8 @@ export async function getTeachersData(): Promise<{ data: Teacher[]; source: "sup
       email: req.email,
       department,
       password: extractedPassword,
-      role: "teacher"
+      role: "teacher",
+      isSuspended
     };
   });
 

@@ -59,7 +59,7 @@ function generateInitialRows(): TableRow[] {
   }));
 }
 
-export function DailyLogTable() {
+export function DailyLogTable({ teacherId, teacherName }: { teacherId: string; teacherName: string }) {
   const [catalog, setCatalog] = useState<CurriculumCatalog>([]);
   const [rows, setRows] = useState<TableRow[]>(generateInitialRows());
   const [date, setDate] = useState("");
@@ -154,8 +154,8 @@ export function DailyLogTable() {
 
       if (row.type === "office") {
         return {
-          teacherId: "t1",
-          teacherName: "Dr. Meera Nair",
+          teacherId,
+          teacherName,
           program: "Office Work",
           semester: "N/A",
           subject: "N/A",
@@ -175,17 +175,17 @@ export function DailyLogTable() {
       const subject = semester?.subjects.find((s) => s.id === row.subjectId);
 
       return {
-        teacherId: "t1",
-        teacherName: "Dr. Meera Nair",
+        teacherId,
+        teacherName,
         program: program?.name ?? "",
         semester: semester?.name ?? "",
         subject: subject?.name ?? "",
-        section: section?.name ?? "",
+        section: section?.name ?? "N/A",
         startTime: formatTime(start),
         endTime: formatTime(end),
         methodology: row.methodology || "Interactive Lecture",
         topic: row.topic || "N/A",
-        notes: row.notes,
+        notes: row.notes || "",
         date: date
       };
     });

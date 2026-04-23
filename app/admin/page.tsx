@@ -2,13 +2,18 @@ import { AdminDashboardContent } from "@/components/admin-dashboard-content";
 import { AppShell } from "@/components/app-shell";
 import { AdminWorkspaceNav } from "@/components/admin-workspace-nav";
 import { requireAdminPage } from "@/lib/auth";
-import { getTeachingLogsData } from "@/lib/data-access";
+import { getTeachingLogsData, getTeachersData } from "@/lib/data-access";
 
 export default async function AdminDashboardPage() {
   await requireAdminPage();
 
-  const logResult = await getTeachingLogsData();
+  const [logResult, teachersResult] = await Promise.all([
+    getTeachingLogsData(),
+    getTeachersData()
+  ]);
+
   const teachingLogs = logResult.data;
+  const teachers = teachersResult.data;
 
   return (
     <AppShell
@@ -18,7 +23,7 @@ export default async function AdminDashboardPage() {
     >
       <AdminWorkspaceNav />
 
-      <AdminDashboardContent teachingLogs={teachingLogs} />
+      <AdminDashboardContent teachingLogs={teachingLogs} teachers={teachers} />
     </AppShell>
   );
 }
