@@ -53,7 +53,7 @@ export function AdminDashboardContent({ teachingLogs, teachers }: AdminDashboard
       "All Departments",
       ...Array.from(new Set([...teacherDepartments, ...logDepartments])).sort((a, b) => a.localeCompare(b))
     ];
-  }, [teachingLogs]);
+  }, [teachingLogs, teachers]);
 
   const filteredLogs = useMemo(() => {
     if (selectedDepartment === "All Departments") {
@@ -61,7 +61,7 @@ export function AdminDashboardContent({ teachingLogs, teachers }: AdminDashboard
     }
 
     return teachingLogs.filter((entry) => resolveLogDepartment(entry, teachers) === selectedDepartment);
-  }, [selectedDepartment, teachingLogs]);
+  }, [selectedDepartment, teachingLogs, teachers]);
 
   const teacherPool = useMemo(() => {
     const onlyTeachers = teachers.filter((entry) => entry.role === "teacher");
@@ -71,7 +71,7 @@ export function AdminDashboardContent({ teachingLogs, teachers }: AdminDashboard
     }
 
     return onlyTeachers.filter((entry) => entry.department === selectedDepartment);
-  }, [selectedDepartment]);
+  }, [selectedDepartment, teachers]);
 
   const workloadData = useMemo(() => {
     return teacherPool.map((teacher) => {

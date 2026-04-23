@@ -7,7 +7,7 @@ import { StatCard } from "@/components/stat-card";
 import { ExportButton } from "@/components/export-button";
 import { buildActivityTrend, buildMethodologyDistribution, durationHours } from "@/lib/admin-metrics";
 import { alerts } from "@/lib/mock-data";
-import { TeachingLog } from "@/lib/types";
+import { TeachingLog, Teacher } from "@/lib/types";
 
 type AdminInsightsContentProps = {
   teachingLogs: TeachingLog[];
@@ -72,7 +72,7 @@ export function AdminInsightsContent({ teachingLogs, teachers }: AdminInsightsCo
       "All Departments",
       ...Array.from(new Set([...teacherDepartments, ...logDepartments])).sort((a, b) => a.localeCompare(b))
     ];
-  }, [teachingLogs]);
+  }, [teachingLogs, teachers]);
 
   const filteredLogs = useMemo(() => {
     if (selectedDepartment === "All Departments") {
@@ -80,7 +80,7 @@ export function AdminInsightsContent({ teachingLogs, teachers }: AdminInsightsCo
     }
 
     return teachingLogs.filter((entry) => resolveLogDepartment(entry, teachers) === selectedDepartment);
-  }, [selectedDepartment, teachingLogs]);
+  }, [selectedDepartment, teachingLogs, teachers]);
 
   const totalHours = useMemo(() => {
     return filteredLogs.reduce((sum, entry) => sum + durationHours(entry.startTime, entry.endTime), 0);
