@@ -4,16 +4,18 @@ import { AdminWorkspaceNav } from "@/components/admin-workspace-nav";
 import { TeacherProfileHeader } from "@/components/teacher-profile-header";
 import { StatCard } from "@/components/stat-card";
 import { requireAdminPage } from "@/lib/auth";
-import { getTeacherDirectoryData, getTeachingLogsData } from "@/lib/data-access";
+import { getTeachingLogsData, getTeachersData } from "@/lib/data-access";
 import { durationHours, buildTeacherHours, buildMethodologyDistribution } from "@/lib/admin-metrics";
 import { MethodologyChart } from "@/components/charts";
+
+import { TeacherActionButtons } from "@/components/teacher-action-buttons";
 
 export default async function TeacherDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   await requireAdminPage();
 
-  const directoryResult = await getTeacherDirectoryData();
-  const teacher = directoryResult.data.find((t) => t.id === id || t.id === decodeURIComponent(id));
+  const { data: realTeachers } = await getTeachersData();
+  const teacher = realTeachers.find((t) => t.id === id || t.id === decodeURIComponent(id));
 
   if (!teacher) {
     return (
@@ -63,12 +65,7 @@ export default async function TeacherDetailPage({ params }: { params: Promise<{ 
         >
           ← Back to Directory
         </Link>
-        <Link
-          href={`/admin/teachers/${teacher.id}/edit`}
-          className="rounded-[0.8rem] bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 active:scale-95"
-        >
-          Edit Profile
-        </Link>
+        <TeacherActionButtons teacherId={teacher.id} isSuspended={teacher.isSuspended ?? false} />
       </div>
 
       <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

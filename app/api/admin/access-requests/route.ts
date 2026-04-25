@@ -174,6 +174,8 @@ export async function POST(request: NextRequest) {
     }
 
     targetUserId = createUserResult.data.user?.id ?? null;
+  } else {
+    await supabase.auth.admin.updateUserById(targetUserId, { email_confirm: true });
   }
 
   if (targetUserId) {

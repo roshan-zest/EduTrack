@@ -2,17 +2,20 @@ import { AppShell } from "@/components/app-shell";
 import { AdminWorkspaceNav } from "@/components/admin-workspace-nav";
 import { TeacherListTable } from "@/components/teacher-list-table";
 import { requireAdminPage } from "@/lib/auth";
-import { getTeacherDirectoryData, getTeachingLogsData } from "@/lib/data-access";
-import { durationHours } from "@/lib/admin-metrics";
+import { getTeachingLogsData, getTeachersData } from "@/lib/data-access";
+import { durationHours, countUniqueTeachers } from "@/lib/admin-metrics";
 
 export default async function AdminTeachersPage() {
   await requireAdminPage();
 
-  const teacherDirectoryResult = await getTeacherDirectoryData();
   const logResult = await getTeachingLogsData();
   const teachingLogs = logResult.data;
 
-  const teacherStats = teacherDirectoryResult.data
+  const teachersResult = await getTeachersData();
+  const teachers = teachersResult.data;
+
+  const teacherStats = teachers
+    .filter((t) => t.role === "teacher")
     .map((teacher) => {
       const teacherLogs = teachingLogs.filter(
         (log) => log.teacherId === teacher.id || log.teacherName.toLowerCase() === teacher.name.toLowerCase()
@@ -28,7 +31,7 @@ export default async function AdminTeachersPage() {
     })
     .sort((a, b) => b.logsCount - a.logsCount);
 
-  const totalTeachers = teacherStats.length;
+  const totalTeachers = countUniqueTeachers(teachingLogs);
 
   return (
     <AppShell
@@ -73,4 +76,3 @@ export default async function AdminTeachersPage() {
     </AppShell>
   );
 }
-

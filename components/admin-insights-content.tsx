@@ -6,15 +6,16 @@ import { AlertList } from "@/components/alert-list";
 import { StatCard } from "@/components/stat-card";
 import { ExportButton } from "@/components/export-button";
 import { buildActivityTrend, buildMethodologyDistribution, durationHours } from "@/lib/admin-metrics";
-import { teachers, alerts } from "@/lib/mock-data";
-import { TeachingLog } from "@/lib/types";
+import { alerts } from "@/lib/mock-data";
+import { TeachingLog, Teacher } from "@/lib/types";
 
 type AdminInsightsContentProps = {
   teachingLogs: TeachingLog[];
+  teachers: Teacher[];
 };
 
-function resolveLogDepartment(log: TeachingLog) {
-  const matchedTeacher = teachers.find(
+function resolveLogDepartment(log: TeachingLog, activeTeachers: Teacher[]) {
+  const matchedTeacher = activeTeachers.find(
     (entry) =>
       entry.id === log.teacherId ||
       entry.name.toLowerCase() === log.teacherName.toLowerCase()
@@ -58,28 +59,28 @@ function buildTeacherHours(logs: TeachingLog[]) {
     .slice(0, 6);
 }
 
-export function AdminInsightsContent({ teachingLogs }: AdminInsightsContentProps) {
+export function AdminInsightsContent({ teachingLogs, teachers }: AdminInsightsContentProps) {
   const [selectedDepartment, setSelectedDepartment] = useState("All Departments");
 
   const departmentOptions = useMemo(() => {
     const teacherDepartments = teachers
       .filter((entry) => entry.role === "teacher")
       .map((entry) => entry.department);
-    const logDepartments = teachingLogs.map(resolveLogDepartment);
+    const logDepartments = teachingLogs.map((log) => resolveLogDepartment(log, teachers));
 
     return [
       "All Departments",
       ...Array.from(new Set([...teacherDepartments, ...logDepartments])).sort((a, b) => a.localeCompare(b))
     ];
-  }, [teachingLogs]);
+  }, [teachingLogs, teachers]);
 
   const filteredLogs = useMemo(() => {
     if (selectedDepartment === "All Departments") {
       return teachingLogs;
     }
 
-    return teachingLogs.filter((entry) => resolveLogDepartment(entry) === selectedDepartment);
-  }, [selectedDepartment, teachingLogs]);
+    return teachingLogs.filter((entry) => resolveLogDepartment(entry, teachers) === selectedDepartment);
+  }, [selectedDepartment, teachingLogs, teachers]);
 
   const totalHours = useMemo(() => {
     return filteredLogs.reduce((sum, entry) => sum + durationHours(entry.startTime, entry.endTime), 0);

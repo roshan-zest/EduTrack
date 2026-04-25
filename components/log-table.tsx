@@ -52,8 +52,8 @@ export function LogTable({ logs }: { logs: TeachingLog[] }) {
                 {log.teacherName}
               </p>
               <p>
-                <span className="block text-xs uppercase tracking-[0.16em] text-slate-400">Section</span>
-                {log.section}
+                <span className="block text-xs uppercase tracking-[0.16em] text-slate-400">Semester</span>
+                {log.semester}
               </p>
               <p>
                 <span className="block text-xs uppercase tracking-[0.16em] text-slate-400">Duration</span>
@@ -75,7 +75,7 @@ export function LogTable({ logs }: { logs: TeachingLog[] }) {
               <th className="px-5 py-4 text-xs font-semibold uppercase tracking-[0.24em]">Date</th>
               <th className="px-5 py-4 text-xs font-semibold uppercase tracking-[0.24em]">Teacher</th>
               <th className="px-5 py-4 text-xs font-semibold uppercase tracking-[0.24em]">Subject</th>
-              <th className="px-5 py-4 text-xs font-semibold uppercase tracking-[0.24em]">Section</th>
+              <th className="px-5 py-4 text-xs font-semibold uppercase tracking-[0.24em]">Semester</th>
               <th className="px-5 py-4 text-xs font-semibold uppercase tracking-[0.24em]">Duration</th>
               <th className="px-5 py-4 text-xs font-semibold uppercase tracking-[0.24em]">Method</th>
               <th className="px-5 py-4 text-xs font-semibold uppercase tracking-[0.24em]">Topic</th>
@@ -90,7 +90,7 @@ export function LogTable({ logs }: { logs: TeachingLog[] }) {
                   <div className="font-medium text-slate-800">{log.subject}</div>
                   <div className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">{log.program}</div>
                 </td>
-                <td className="px-5 py-4 text-slate-600">{log.section}</td>
+                <td className="px-5 py-4 font-medium text-slate-700">{log.semester}</td>
                 <td className="px-5 py-4 text-slate-600">{formatHours(log.startTime, log.endTime)}</td>
                 <td className="px-5 py-4">
                   <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">

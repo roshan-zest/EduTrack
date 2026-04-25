@@ -1,9 +1,9 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { getDevCatalog, getDevLogs, setDevCatalog, addDevLog } from "@/lib/dev-store";
-import { curriculumCatalog, teachingLogs as mockTeachingLogs, teachers as mockTeachers } from "@/lib/mock-data";
+import { curriculumCatalog, teachingLogs as mockTeachingLogs } from "@/lib/mock-data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { CurriculumCatalog, TeachingLog } from "@/lib/types";
+import { CurriculumCatalog, TeachingLog, Teacher } from "@/lib/types";
 
 const curriculumCatalogSchema = z.array(
   z.object({
@@ -145,137 +145,134 @@ export async function createTeachingLogData(payload: unknown): Promise<{
   data: TeachingLog;
   source: "supabase" | "memory";
 }> {
-  const parsedPayload = teachingLogPayloadSchema.parse(payload);
-  const nextLog: TeachingLog = {
+  const result = await createTeachingLogsBulkData([payload]);
+  return { data: result.data[0], source: result.source };
+}
+
+export async function createTeachingLogsBulkData(payloads: unknown[]): Promise<{
+  data: TeachingLog[];
+  source: "supabase" | "memory";
+}> {
+  const parsedPayloads = payloads.map((payload) => teachingLogPayloadSchema.parse(payload));
+  const nextLogs: TeachingLog[] = parsedPayloads.map((parsed) => ({
     id: randomUUID(),
-    ...parsedPayload
-  };
+    ...parsed
+  }));
 
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {
-    return { data: addDevLog(nextLog), source: "memory" };
+    nextLogs.forEach((log) => addDevLog(log));
+    return { data: nextLogs, source: "memory" };
   }
 
-  const { error } = await supabase.from("teaching_logs").insert({
-    id: nextLog.id,
-    teacher_id: nextLog.teacherId,
-    teacher_name: nextLog.teacherName,
-    program: nextLog.program,
-    semester: nextLog.semester,
-    subject: nextLog.subject,
-    section: nextLog.section,
-    start_time: nextLog.startTime,
-    end_time: nextLog.endTime,
-    methodology: nextLog.methodology,
-    topic: nextLog.topic,
-    notes: nextLog.notes ?? "",
-    date: nextLog.date
-  });
+  const insertData = nextLogs.map((log) => ({
+    id: log.id,
+    teacher_id: log.teacherId,
+    teacher_name: log.teacherName,
+    program: log.program,
+    semester: log.semester,
+    subject: log.subject,
+    section: log.section,
+    start_time: log.startTime,
+    end_time: log.endTime,
+    methodology: log.methodology,
+    topic: log.topic,
+    notes: log.notes ?? "",
+    date: log.date
+  }));
+
+  const { error } = await supabase.from("teaching_logs").insert(insertData);
 
   if (error) {
-    return { data: addDevLog(nextLog), source: "memory" };
+    nextLogs.forEach((log) => addDevLog(log));
+    return { data: nextLogs, source: "memory" };
   }
 
-  return { data: nextLog, source: "supabase" };
+  return { data: nextLogs, source: "supabase" };
 }
 
-function formatNameFromEmail(email: string) {
-  const localPart = email.split("@")[0] ?? "";
-  const normalized = localPart.replace(/[._-]+/g, " ").trim();
-
-  if (!normalized) {
-    return "EduTrack User";
-  }
-
-  return normalized
-    .split(" ")
-    .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
-    .join(" ");
-}
-
-export async function getTeacherDirectoryData(): Promise<{ data: typeof mockTeachers; source: "supabase" | "memory" }> {
-  const localTeachers = mockTeachers.filter((teacher) => teacher.role === "teacher");
+export async function getTeachersData(): Promise<{ data: Teacher[]; source: "supabase" | "memory" }> {
   const supabase = getSupabaseServerClient();
 
   if (!supabase) {
-    return { data: localTeachers, source: "memory" };
+    return { data: [], source: "memory" };
   }
 
-  let usersResult:
-    | Awaited<ReturnType<NonNullable<typeof supabase>["auth"]["admin"]["listUsers"]>>
-    | null = null;
-  let rolesResult: { data: Array<{ user_id: string; role: string }> | null; error: { message: string } | null } | null = null;
-  let accessRequestResult: { data: Array<{ email: string; access_code: string; status: string }> | null; error: { message: string } | null } | null = null;
+  // Get all approved requests
+  const { data: requests, error: requestsError } = await supabase
+    .from("access_requests")
+    .select("*")
+    .eq("status", "approved");
 
-  try {
-    const [usersResponse, rolesResponse, accessResponse] = await Promise.all([
-      supabase.auth.admin.listUsers({ page: 1, perPage: 1000 }),
-      supabase.from("user_roles").select("user_id, role"),
-      supabase.from("access_requests").select("email, access_code, status")
-    ]);
-
-    usersResult = usersResponse;
-    rolesResult = {
-      data: (rolesResponse.data as Array<{ user_id: string; role: string }> | null) ?? null,
-      error: rolesResponse.error ? { message: rolesResponse.error.message } : null
-    };
-    accessRequestResult = {
-      data: (accessResponse.data as Array<{ email: string; access_code: string; status: string }> | null) ?? null,
-      error: accessResponse.error ? { message: accessResponse.error.message } : null
-    };
-  } catch {
-    return { data: localTeachers, source: "memory" };
+  if (requestsError || !requests) {
+    return { data: [], source: "supabase" };
   }
 
-  if (!usersResult || !rolesResult || !accessRequestResult || usersResult.error || rolesResult.error || accessRequestResult.error) {
-    return { data: localTeachers, source: "memory" };
-  }
+  // Filter for teachers in JS to avoid column-not-found errors if desired_role is missing
+  const teacherRequests = requests.filter(req => req.desired_role === "teacher" || !req.desired_role);
 
-  const roleMap = new Map((rolesResult.data ?? []).map((entry) => [entry.user_id, entry.role]));
-  const approvedAccessCodeByEmail = new Map(
-    (accessRequestResult.data ?? [])
-      .filter((entry) => entry.status === "approved")
-      .map((entry) => [entry.email.toLowerCase(), entry.access_code])
-  );
-  const directoryMap = new Map<string, (typeof localTeachers)[number]>();
+  const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
+  const authUsers = authError || !authData?.users ? [] : authData.users;
 
-  for (const teacher of localTeachers) {
-    directoryMap.set(teacher.email.toLowerCase(), teacher);
-  }
+  const teachers: Teacher[] = teacherRequests.map((req) => {
+    const user = authUsers.find((u) => u.email?.toLowerCase() === req.email.toLowerCase());
+    
+    let name = "EduTrack Teacher";
+    let department = "General";
+    let id = req.id;
 
-  for (const user of usersResult.data.users) {
-    const role = roleMap.get(user.id);
-    if (role !== "teacher") {
-      continue;
+    let isSuspended = false;
+
+    if (user) {
+      id = user.id;
+      const meta = user.user_metadata as Record<string, any>;
+      
+      if (meta?.full_name) {
+        name = meta.full_name;
+      } else if (meta?.name) {
+        name = meta.name;
+      } else {
+        const localPart = req.email.split("@")[0] ?? "";
+        name = localPart.replace(/[._-]+/g, " ").trim() || name;
+      }
+
+      if (meta?.department) {
+        department = meta.department;
+      }
+      
+      if (user.banned_until) {
+        isSuspended = new Date(user.banned_until).getTime() > Date.now();
+      }
+    } else {
+      const localPart = req.email.split("@")[0] ?? "";
+      name = localPart.replace(/[._-]+/g, " ").trim() || name;
     }
 
-    const email = user.email ?? "";
-    if (!email) {
-      continue;
+    let extractedPassword = req.access_code;
+    if (user?.user_metadata?.raw_password) {
+      extractedPassword = user.user_metadata.raw_password;
+    } else if (req.note && req.note.startsWith("PWD:")) {
+      extractedPassword = req.note.substring(4);
     }
 
-    const metadata = user.user_metadata as Record<string, unknown> | null;
-    const persistedPassword = typeof metadata?.login_password === "string" ? metadata.login_password : undefined;
-    const displayName =
-      typeof metadata?.full_name === "string"
-        ? metadata.full_name
-        : typeof metadata?.name === "string"
-          ? metadata.name
-          : formatNameFromEmail(email);
+    // Capitalize name
+    name = name
+      .split(" ")
+      .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+      .join(" ");
 
-    directoryMap.set(email.toLowerCase(), {
-      id: user.id,
-      name: displayName,
-      email,
-      password: persistedPassword ?? approvedAccessCodeByEmail.get(email.toLowerCase()),
-      department: typeof metadata?.department === "string" ? metadata.department : "Teaching Staff",
-      role: "teacher"
-    });
-  }
+    return {
+      id,
+      name,
+      email: req.email,
+      department,
+      password: extractedPassword,
+      role: "teacher",
+      isSuspended
+    };
+  });
 
-  return {
-    data: Array.from(directoryMap.values()),
-    source: "supabase"
-  };
+  return { data: teachers, source: "supabase" };
 }
+
