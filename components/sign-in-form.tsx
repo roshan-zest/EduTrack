@@ -34,14 +34,13 @@ export function SignInForm() {
       const normalizedEmail = email.trim().toLowerCase();
 
       if (mode === "forgot-password") {
-        const response = await fetch("/api/auth/reset-password", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: normalizedEmail })
+        const { getSupabaseBrowserClient } = await import("@/lib/supabase/client");
+        const supabase = getSupabaseBrowserClient();
+        const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+          redirectTo: `${window.location.origin}/auth/callback?next=/update-password`
         });
-        const payload = await response.json();
-        if (!response.ok || !payload.success) {
-          throw new Error(payload.error ?? "Unable to request password reset");
+        if (error) {
+          throw new Error(error.message);
         }
         setMessage("Password reset link sent to your email.");
         setLoading(false);
