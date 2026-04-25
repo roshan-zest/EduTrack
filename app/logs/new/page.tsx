@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
-import { LogForm } from "@/components/log-form";
+import { LogFormWithUser } from "@/components/log-form";
+import { requireAuthPage } from "@/lib/auth";
 
-export default function NewLogPage() {
+export default async function NewLogPage() {
+  const auth = await requireAuthPage("/logs/new");
+
   return (
     <AppShell
       title="Submit Daily Teaching Log"
       subtitle="Capture subject coverage, class timing, methodology, and notes in a consistent format that can power analytics and reports."
-      role="Teacher"
+      role={auth.role === "admin" ? "Admin" : "Teacher"}
     >
       <div className="mb-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="glass-panel rounded-[1.9rem] p-6">
@@ -23,7 +26,14 @@ export default function NewLogPage() {
         </div>
       </div>
 
-      <LogForm />
+      <LogFormWithUser
+        user={{
+          id: auth.user.id,
+          name: auth.user.name,
+          email: auth.user.email,
+          role: auth.role
+        }}
+      />
 
       <div className="mt-6">
         <Link href="/teacher" className="text-sm font-medium text-slateBlue">

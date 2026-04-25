@@ -4,8 +4,7 @@ import { AdminWorkspaceNav } from "@/components/admin-workspace-nav";
 import { TeacherProfileHeader } from "@/components/teacher-profile-header";
 import { StatCard } from "@/components/stat-card";
 import { requireAdminPage } from "@/lib/auth";
-import { getTeachingLogsData } from "@/lib/data-access";
-import { teachers } from "@/lib/mock-data";
+import { getTeacherDirectoryData, getTeachingLogsData } from "@/lib/data-access";
 import { durationHours, buildTeacherHours, buildMethodologyDistribution } from "@/lib/admin-metrics";
 import { MethodologyChart } from "@/components/charts";
 
@@ -13,7 +12,8 @@ export default async function TeacherDetailPage({ params }: { params: Promise<{ 
   const { id } = await params;
   await requireAdminPage();
 
-  const teacher = teachers.find((t) => t.id === id || t.id === decodeURIComponent(id));
+  const directoryResult = await getTeacherDirectoryData();
+  const teacher = directoryResult.data.find((t) => t.id === id || t.id === decodeURIComponent(id));
 
   if (!teacher) {
     return (

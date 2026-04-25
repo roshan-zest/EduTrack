@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Teacher } from "@/lib/types";
 
@@ -13,30 +12,6 @@ interface TeacherListTableProps {
 }
 
 export function TeacherListTable({ teacherStats }: TeacherListTableProps) {
-  const [teachers, setTeachers] = useState(teacherStats);
-
-  useEffect(() => {
-    // Check localStorage for updated teacher data
-    const updatedTeachersStr = localStorage.getItem('edutrack_teachers');
-    if (updatedTeachersStr) {
-      try {
-        const updatedTeachersMap = JSON.parse(updatedTeachersStr);
-        const updated = teacherStats.map((teacher) => {
-          if (updatedTeachersMap[teacher.id]) {
-            return {
-              ...teacher,
-              ...updatedTeachersMap[teacher.id],
-            };
-          }
-          return teacher;
-        });
-        setTeachers(updated);
-      } catch (e) {
-        // If JSON parsing fails, use initial teachers
-      }
-    }
-  }, [teacherStats]);
-
   return (
     <div className="overflow-hidden rounded-[1rem] border border-slate-200/70 bg-white shadow-soft">
       <div className="overflow-x-auto">
@@ -54,7 +29,7 @@ export function TeacherListTable({ teacherStats }: TeacherListTableProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200/60">
-            {teachers.map((teacher) => (
+            {teacherStats.map((teacher) => (
               <tr key={teacher.id} className="hover:bg-slate-50/60 transition">
                 <td className="px-4 py-3 font-semibold text-slate-900">{teacher.name}</td>
                 <td className="px-4 py-3 text-slate-700 font-mono text-xs">{teacher.email}</td>
@@ -95,7 +70,7 @@ export function TeacherListTable({ teacherStats }: TeacherListTableProps) {
         </table>
       </div>
 
-      {teachers.length === 0 && (
+      {teacherStats.length === 0 && (
         <div className="px-4 py-10 text-center">
           <p className="text-sm text-slate-600">No teachers with recorded activity yet.</p>
         </div>

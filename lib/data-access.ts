@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { getDevCatalog, getDevLogs, setDevCatalog, addDevLog } from "@/lib/dev-store";
-import { curriculumCatalog, teachingLogs as mockTeachingLogs } from "@/lib/mock-data";
+import { curriculumCatalog, teachingLogs as mockTeachingLogs, teachers as mockTeachers } from "@/lib/mock-data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { CurriculumCatalog, TeachingLog } from "@/lib/types";
 
@@ -178,4 +178,104 @@ export async function createTeachingLogData(payload: unknown): Promise<{
   }
 
   return { data: nextLog, source: "supabase" };
+}
+
+function formatNameFromEmail(email: string) {
+  const localPart = email.split("@")[0] ?? "";
+  const normalized = localPart.replace(/[._-]+/g, " ").trim();
+
+  if (!normalized) {
+    return "EduTrack User";
+  }
+
+  return normalized
+    .split(" ")
+    .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+    .join(" ");
+}
+
+export async function getTeacherDirectoryData(): Promise<{ data: typeof mockTeachers; source: "supabase" | "memory" }> {
+  const localTeachers = mockTeachers.filter((teacher) => teacher.role === "teacher");
+  const supabase = getSupabaseServerClient();
+
+  if (!supabase) {
+    return { data: localTeachers, source: "memory" };
+  }
+
+  let usersResult:
+    | Awaited<ReturnType<NonNullable<typeof supabase>["auth"]["admin"]["listUsers"]>>
+    | null = null;
+  let rolesResult: { data: Array<{ user_id: string; role: string }> | null; error: { message: string } | null } | null = null;
+  let accessRequestResult: { data: Array<{ email: string; access_code: string; status: string }> | null; error: { message: string } | null } | null = null;
+
+  try {
+    const [usersResponse, rolesResponse, accessResponse] = await Promise.all([
+      supabase.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+      supabase.from("user_roles").select("user_id, role"),
+      supabase.from("access_requests").select("email, access_code, status")
+    ]);
+
+    usersResult = usersResponse;
+    rolesResult = {
+      data: (rolesResponse.data as Array<{ user_id: string; role: string }> | null) ?? null,
+      error: rolesResponse.error ? { message: rolesResponse.error.message } : null
+    };
+    accessRequestResult = {
+      data: (accessResponse.data as Array<{ email: string; access_code: string; status: string }> | null) ?? null,
+      error: accessResponse.error ? { message: accessResponse.error.message } : null
+    };
+  } catch {
+    return { data: localTeachers, source: "memory" };
+  }
+
+  if (!usersResult || !rolesResult || !accessRequestResult || usersResult.error || rolesResult.error || accessRequestResult.error) {
+    return { data: localTeachers, source: "memory" };
+  }
+
+  const roleMap = new Map((rolesResult.data ?? []).map((entry) => [entry.user_id, entry.role]));
+  const approvedAccessCodeByEmail = new Map(
+    (accessRequestResult.data ?? [])
+      .filter((entry) => entry.status === "approved")
+      .map((entry) => [entry.email.toLowerCase(), entry.access_code])
+  );
+  const directoryMap = new Map<string, (typeof localTeachers)[number]>();
+
+  for (const teacher of localTeachers) {
+    directoryMap.set(teacher.email.toLowerCase(), teacher);
+  }
+
+  for (const user of usersResult.data.users) {
+    const role = roleMap.get(user.id);
+    if (role !== "teacher") {
+      continue;
+    }
+
+    const email = user.email ?? "";
+    if (!email) {
+      continue;
+    }
+
+    const metadata = user.user_metadata as Record<string, unknown> | null;
+    const persistedPassword = typeof metadata?.login_password === "string" ? metadata.login_password : undefined;
+    const displayName =
+      typeof metadata?.full_name === "string"
+        ? metadata.full_name
+        : typeof metadata?.name === "string"
+          ? metadata.name
+          : formatNameFromEmail(email);
+
+    directoryMap.set(email.toLowerCase(), {
+      id: user.id,
+      name: displayName,
+      email,
+      password: persistedPassword ?? approvedAccessCodeByEmail.get(email.toLowerCase()),
+      department: typeof metadata?.department === "string" ? metadata.department : "Teaching Staff",
+      role: "teacher"
+    });
+  }
+
+  return {
+    data: Array.from(directoryMap.values()),
+    source: "supabase"
+  };
 }

@@ -13,30 +13,12 @@ interface EditTeacherFormProps {
 export function EditTeacherForm({ teacher, teacherId }: EditTeacherFormProps) {
   const router = useRouter();
 
-  // Initialize with teacher data, checking localStorage first for updates
-  const [initialTeacher] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const updatedTeachersStr = localStorage.getItem('edutrack_teachers');
-      if (updatedTeachersStr) {
-        try {
-          const updatedTeachers = JSON.parse(updatedTeachersStr);
-          if (updatedTeachers[teacher.id]) {
-            return updatedTeachers[teacher.id];
-          }
-        } catch (e) {
-          // If JSON parsing fails, use initial teacher
-        }
-      }
-    }
-    return teacher;
-  });
-
   const [formData, setFormData] = useState({
-    name: initialTeacher.name,
-    email: initialTeacher.email,
-    password: initialTeacher.password || "",
-    department: initialTeacher.department,
-    role: initialTeacher.role,
+    name: teacher.name,
+    email: teacher.email,
+    password: teacher.password || "",
+    department: teacher.department,
+    role: teacher.role,
   });
 
   const [loading, setLoading] = useState(false);
@@ -58,45 +40,34 @@ export function EditTeacherForm({ teacher, teacherId }: EditTeacherFormProps) {
     setError("");
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const response = await fetch('/api/admin/teachers', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          currentEmail: teacher.email,
+          email: formData.email,
+          name: formData.name,
+          password: formData.password,
+          department: formData.department,
+          role: formData.role
+        })
+      });
 
-      // Save updated teacher to localStorage
-      const updatedTeacher = {
-        ...teacher,
-        ...formData,
-      };
-      
-      // Get all updated teachers from localStorage
-      const updatedTeachersStr = localStorage.getItem('edutrack_teachers') || '{}';
-      const updatedTeachers = JSON.parse(updatedTeachersStr);
-      updatedTeachers[teacher.id] = updatedTeacher;
-      localStorage.setItem('edutrack_teachers', JSON.stringify(updatedTeachers));
-
-      if (formData.role !== teacher.role || formData.email !== teacher.email) {
-        const roleResponse = await fetch('/api/admin/users', {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            role: formData.role
-          })
-        });
-
-        if (!roleResponse.ok && roleResponse.status !== 404) {
-          const rolePayload = (await roleResponse.json()) as { error?: string };
-          throw new Error(rolePayload.error ?? 'Failed to sync user role');
-        }
+      const payload = (await response.json()) as { success?: boolean; error?: string };
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error ?? 'Failed to update teacher');
       }
 
       setMessage("✓ Teacher information updated successfully!");
       setTimeout(() => {
+        router.refresh();
         router.push(`/admin/teachers/${teacherId}`);
       }, 1500);
     } catch (err) {
-      setError("Failed to update teacher. Please try again.");
+      const text = err instanceof Error ? err.message : "Failed to update teacher. Please try again.";
+      setError(text);
     } finally {
       setLoading(false);
     }
@@ -213,7 +184,7 @@ export function EditTeacherForm({ teacher, teacherId }: EditTeacherFormProps) {
       {/* Info Box */}
       <div className="mt-6 rounded-[1rem] border border-blue-200 bg-blue-50 p-4">
         <p className="text-xs text-blue-700">
-          <span className="font-semibold">Note:</span> Changes are saved to the system. Password and role updates apply to linked login accounts when available.
+          <span className="font-semibold">Note:</span> Changes are saved server-side. Email, password, role, and status stay in sync with actual login credentials.
         </p>
       </div>
     </section>

@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Invalid payload" }, { status: 400 });
   }
 
-  const { email } = parsed.data;
+  const email = parsed.data.email.trim().toLowerCase();
   const supabase = getSupabaseServerClient();
   if (!supabase) {
     return NextResponse.json({ success: false, error: "Supabase server config missing" }, { status: 503 });

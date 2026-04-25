@@ -2,14 +2,15 @@ import { EditTeacherForm } from "@/components/edit-teacher-form";
 import { AppShell } from "@/components/app-shell";
 import { AdminWorkspaceNav } from "@/components/admin-workspace-nav";
 import { requireAdminPage } from "@/lib/auth";
-import { teachers } from "@/lib/mock-data";
+import { getTeacherDirectoryData } from "@/lib/data-access";
 import Link from "next/link";
 
 export default async function EditTeacherPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   await requireAdminPage();
 
-  const teacher = teachers.find((t) => t.id === id || t.id === decodeURIComponent(id));
+  const directoryResult = await getTeacherDirectoryData();
+  const teacher = directoryResult.data.find((t) => t.id === id || t.id === decodeURIComponent(id));
 
   if (!teacher) {
     return (

@@ -26,7 +26,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Invalid payload", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { email, desiredRole } = parsed.data;
+  const { desiredRole } = parsed.data;
+  const email = parsed.data.email.trim().toLowerCase();
+
+  const existingRequestResult = await supabase
+    .from("access_requests")
+    .select("id, user_id, email, access_code, desired_role, status, note, created_at, approved_at, rejected_at")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (!existingRequestResult.error && existingRequestResult.data?.status === "approved") {
+    return NextResponse.json({ success: true, data: existingRequestResult.data });
+  }
+
   const accessCode = generateCode();
 
   const { data, error } = await supabase

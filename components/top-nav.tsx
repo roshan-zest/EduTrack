@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
+const TAB_LOCAL_LOGOUT_KEY = "edutrack-tab-local-logout";
+
 type AuthState = {
   loading: boolean;
   authenticated: boolean;
@@ -26,6 +28,18 @@ export function TopNav() {
     let cancelled = false;
 
     async function loadAuth() {
+      if (typeof window !== "undefined" && sessionStorage.getItem(TAB_LOCAL_LOGOUT_KEY) === "1") {
+        if (!cancelled) {
+          setAuthState({
+            loading: false,
+            authenticated: false,
+            role: null,
+            name: null
+          });
+        }
+        return;
+      }
+
       try {
         const response = await fetch("/api/auth/me", { cache: "no-store" });
         const payload = (await response.json()) as {
@@ -77,16 +91,16 @@ export function TopNav() {
     navLinks.find((item) => pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href)))?.href ?? "/";
 
   async function handleSignOut() {
-    try {
-      const supabase = getSupabaseBrowserClient();
-      await supabase.auth.signOut();
-    } catch {
-      // Browser sign out fallback is cookie clear below.
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(TAB_LOCAL_LOGOUT_KEY, "1");
     }
 
-    await fetch("/api/auth/session", {
-      method: "DELETE"
-    });
+    try {
+      const supabase = getSupabaseBrowserClient();
+      await supabase.auth.signOut({ scope: "local" });
+    } catch {
+      // Keep tab-local logout state even if Supabase client sign out fails.
+    }
 
     setAuthState({
       loading: false,

@@ -142,11 +142,31 @@ export async function POST(request: NextRequest) {
   const matchedUser = allUsers.data.users.find((user) => (user.email ?? "").toLowerCase() === existingRequest.email.toLowerCase());
   let targetUserId = existingRequest.user_id ?? matchedUser?.id ?? null;
 
+  if (matchedUser?.id) {
+    const existingMetadata = (matchedUser.user_metadata as Record<string, unknown> | null) ?? {};
+    const nextMetadata = {
+      ...existingMetadata,
+      login_password: typeof existingMetadata.login_password === "string" ? existingMetadata.login_password : existingRequest.access_code
+    };
+
+    const confirmUserResult = await supabase.auth.admin.updateUserById(matchedUser.id, {
+      email_confirm: true,
+      user_metadata: nextMetadata
+    });
+
+    if (confirmUserResult.error) {
+      return NextResponse.json({ success: false, error: confirmUserResult.error.message }, { status: 500 });
+    }
+  }
+
   if (!targetUserId) {
     const createUserResult = await supabase.auth.admin.createUser({
       email: existingRequest.email,
       password: existingRequest.access_code,
-      email_confirm: true
+      email_confirm: true,
+      user_metadata: {
+        login_password: existingRequest.access_code
+      }
     });
 
     if (createUserResult.error) {
