@@ -15,15 +15,13 @@ export function UpdatePasswordForm() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/update-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password })
-      });
-
-      const payload = await response.json();
-      if (!response.ok || !payload.success) {
-        throw new Error(payload.error ?? "Unable to update password");
+      const { getSupabaseBrowserClient } = await import("@/lib/supabase/client");
+      const supabase = getSupabaseBrowserClient();
+      
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      
+      if (updateError) {
+        throw new Error(updateError.message);
       }
 
       setMessage("Password updated successfully. You can now login with your new password.");
