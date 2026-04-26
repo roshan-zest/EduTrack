@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const TAB_LOCAL_LOGOUT_KEY = "edutrack-tab-local-logout";
 
@@ -25,6 +26,50 @@ export function SignInForm() {
     return nextValue;
   }, [searchParams]);
 
+  function isUserAlreadyRegisteredError(message: string) {
+    return /already registered|already been registered|user already exists/i.test(message);
+  }
+
+  function isEmailRateLimitError(message: string) {
+    return /rate limit|email rate limit exceeded|too many requests/i.test(message);
+  }
+
+  async function persistSession(accessToken: string, refreshToken: string) {
+    const response = await fetch("/api/auth/session", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ accessToken, refreshToken })
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to persist session cookie");
+    }
+  }
+
+  async function requestAccess(emailValue: string, passwordValue?: string) {
+    const response = await fetch("/api/auth/request-access", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email: emailValue, password: passwordValue })
+    });
+
+    const payload = (await response.json()) as {
+      success: boolean;
+      data?: { access_code?: string; status?: string };
+      error?: string;
+    };
+
+    if (!response.ok || !payload.success || !payload.data?.access_code) {
+      throw new Error(payload.error ?? "Unable to create access request");
+    }
+
+    return payload.data.access_code;
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
@@ -32,10 +77,9 @@ export function SignInForm() {
 
     try {
       const normalizedEmail = email.trim().toLowerCase();
+      const supabase = getSupabaseBrowserClient();
 
       if (mode === "forgot-password") {
-        const { getSupabaseBrowserClient } = await import("@/lib/supabase/client");
-        const supabase = getSupabaseBrowserClient();
         const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
           redirectTo: `${window.location.origin}/auth/callback?next=/update-password`
         });
@@ -48,30 +92,50 @@ export function SignInForm() {
       }
 
       if (mode === "signin") {
-        const response = await fetch("/api/auth/direct-signin", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: normalizedEmail, password })
-        });
+        const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+        if (error || !data.session) {
+          const statusResponse = await fetch("/api/auth/access-status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: normalizedEmail })
+          });
 
-        const payload = (await response.json()) as {
-          success?: boolean;
-          authenticated?: boolean;
-          accessStatus?: "pending" | "invalid";
-          accessCode?: string | null;
-          error?: string;
-        };
+          const statusPayload = (await statusResponse.json()) as {
+            data?: { status?: string; accessCode?: string };
+            error?: string;
+          };
 
-        if (!response.ok || !payload.success || !payload.authenticated) {
-          if (payload.accessStatus === "pending") {
-            setMessage(
-              payload.accessCode
-                ? `Your registration is pending admin approval. Share code ${payload.accessCode} with admin.`
-                : "Your registration is pending admin approval."
-            );
+          if (statusPayload.data?.status === "pending") {
+            setMessage("Your request is still pending. Wait for admin approval, then sign in using the access code you received.");
+          } else if (statusPayload.data?.status === "approved" && statusPayload.data?.accessCode) {
+            setMessage("Your request is approved. Sign in with your registered password.");
+          } else if (statusPayload.data?.status === "not_found") {
+            setMessage("No registration request found for this email. Use Register first, then wait for admin approval.");
           } else {
-            setMessage(payload.error ?? "Unable to authenticate");
+            setMessage(error?.message ?? "Unable to authenticate");
           }
+
+          setLoading(false);
+          return;
+        }
+
+        await persistSession(data.session.access_token, data.session.refresh_token);
+        const authResponse = await fetch("/api/auth/me", { cache: "no-store" });
+        const authPayload = (await authResponse.json()) as { authenticated?: boolean; accessStatus?: string };
+
+        if (!authResponse.ok || !authPayload.authenticated) {
+          await fetch("/api/auth/session", { method: "DELETE" });
+          try {
+            await supabase.auth.signOut();
+          } catch {
+            // ignore browser sign-out errors
+          }
+
+          const pendingMessage =
+            authPayload.accessStatus === "pending"
+              ? "Your registration is waiting for admin approval. Once approved, you can sign in normally."
+              : "Access is blocked until an admin approves your registration request.";
+          setMessage(pendingMessage);
           setLoading(false);
           return;
         }
@@ -80,32 +144,38 @@ export function SignInForm() {
         router.push(nextRoute);
         router.refresh();
       } else {
-        const response = await fetch("/api/auth/register", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ email: normalizedEmail, password })
+        // mode === "signup"
+        const signUpResult = await supabase.auth.signUp({
+          email: normalizedEmail,
+          password,
+          options: {
+            data: {
+              raw_password: password
+            }
+          }
         });
 
-        const payload = (await response.json()) as {
-          success: boolean;
-          data?: { access_code?: string; status?: string };
-          error?: string;
-        };
-
-        if (!response.ok || !payload.success) {
-          throw new Error(payload.error ?? "Unable to register right now");
+        if (
+          signUpResult.error &&
+          !isUserAlreadyRegisteredError(signUpResult.error.message) &&
+          !isEmailRateLimitError(signUpResult.error.message)
+        ) {
+          throw new Error(signUpResult.error.message);
         }
 
-        const code = payload.data?.access_code ?? "";
-        const status = payload.data?.status ?? "pending";
+        if (signUpResult.data.session) {
+          await supabase.auth.signOut();
+        }
+
+        const code = await requestAccess(normalizedEmail, password);
         setAccessCode(code);
-        if (status === "approved") {
-          setMessage(`Your account is already approved. Login with your email and password.`);
-        } else {
-          setMessage(`Registration submitted. Your access code is ${code}. Share this code with admin for approval, then login with email and password.`);
-        }
+        setMessage(
+          signUpResult.error
+            ? isEmailRateLimitError(signUpResult.error.message)
+              ? `Registration request submitted. Your access code is ${code}. Email signup is rate-limited right now, so ask admin to approve first, then sign in using the access code.`
+              : `Registration request refreshed. Your access code is ${code}. Wait for admin approval, then sign in with your existing password or access code.`
+            : `Account created and registration request submitted. Your access code is ${code}. Wait for admin approval, then sign in with your password.`
+        );
       }
     } catch (error) {
       const text = error instanceof Error ? error.message : "Unable to authenticate";
