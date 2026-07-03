@@ -12,7 +12,11 @@ export async function GET() {
   const data =
     auth.role === "admin"
       ? result.data
-      : result.data.filter((log) => log.teacherId === auth.user.id);
+      : result.data.filter(
+          (log) =>
+            log.teacherId === auth.user.id ||
+            log.teacherName.toLowerCase() === auth.user.name.toLowerCase()
+        );
 
   return NextResponse.json({
     success: true,
