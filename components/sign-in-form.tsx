@@ -48,13 +48,13 @@ export function SignInForm() {
     }
   }
 
-  async function requestAccess(emailValue: string, passwordValue?: string) {
+  async function requestAccess(emailValue: string) {
     const response = await fetch("/api/auth/request-access", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ email: emailValue, password: passwordValue })
+      body: JSON.stringify({ email: emailValue })
     });
 
     const payload = (await response.json()) as {
@@ -68,6 +68,24 @@ export function SignInForm() {
     }
 
     return payload.data.access_code;
+  }
+
+  async function directSignIn(emailValue: string, passwordValue: string) {
+    const response = await fetch("/api/auth/direct-signin", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email: emailValue, password: passwordValue })
+    });
+
+    const payload = (await response.json()) as {
+      success: boolean;
+      accessStatus?: string;
+      error?: string;
+    };
+
+    return { ok: response.ok, payload };
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -92,50 +110,15 @@ export function SignInForm() {
       }
 
       if (mode === "signin") {
-        const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
-        if (error || !data.session) {
-          const statusResponse = await fetch("/api/auth/access-status", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: normalizedEmail })
-          });
+        const { ok, payload } = await directSignIn(normalizedEmail, password);
 
-          const statusPayload = (await statusResponse.json()) as {
-            data?: { status?: string; accessCode?: string };
-            error?: string;
-          };
-
-          if (statusPayload.data?.status === "pending") {
+        if (!ok || !payload.success) {
+          if (payload.accessStatus === "pending") {
             setMessage("Your request is still pending. Wait for admin approval, then sign in using the access code you received.");
-          } else if (statusPayload.data?.status === "approved" && statusPayload.data?.accessCode) {
-            setMessage("Your request is approved. Sign in with your registered password.");
-          } else if (statusPayload.data?.status === "not_found") {
-            setMessage("No registration request found for this email. Use Register first, then wait for admin approval.");
           } else {
-            setMessage(error?.message ?? "Unable to authenticate");
+            setMessage(payload.error ?? "Unable to authenticate");
           }
 
-          setLoading(false);
-          return;
-        }
-
-        await persistSession(data.session.access_token, data.session.refresh_token);
-        const authResponse = await fetch("/api/auth/me", { cache: "no-store" });
-        const authPayload = (await authResponse.json()) as { authenticated?: boolean; accessStatus?: string };
-
-        if (!authResponse.ok || !authPayload.authenticated) {
-          await fetch("/api/auth/session", { method: "DELETE" });
-          try {
-            await supabase.auth.signOut();
-          } catch {
-            // ignore browser sign-out errors
-          }
-
-          const pendingMessage =
-            authPayload.accessStatus === "pending"
-              ? "Your registration is waiting for admin approval. Once approved, you can sign in normally."
-              : "Access is blocked until an admin approves your registration request.";
-          setMessage(pendingMessage);
           setLoading(false);
           return;
         }
@@ -147,12 +130,7 @@ export function SignInForm() {
         // mode === "signup"
         const signUpResult = await supabase.auth.signUp({
           email: normalizedEmail,
-          password,
-          options: {
-            data: {
-              raw_password: password
-            }
-          }
+          password
         });
 
         if (
@@ -167,7 +145,7 @@ export function SignInForm() {
           await supabase.auth.signOut();
         }
 
-        const code = await requestAccess(normalizedEmail, password);
+        const code = await requestAccess(normalizedEmail);
         setAccessCode(code);
         setMessage(
           signUpResult.error

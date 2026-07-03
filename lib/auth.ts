@@ -24,36 +24,6 @@ export type AuthContext = {
   role: AppRole;
 };
 
-async function hasApprovedAccess(userId: string, email: string): Promise<boolean> {
-  const bootstrapEmails = parseBootstrapAdminEmails();
-  if (bootstrapEmails.includes(email.toLowerCase())) {
-    return true;
-  }
-
-  const supabase = getSupabaseServerClient();
-  if (!supabase) {
-    return false;
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from("access_requests")
-      .select("status")
-      .or(`user_id.eq.${userId},email.eq.${email}`)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (!error && data?.status === "approved") {
-      return true;
-    }
-  } catch {
-    return false;
-  }
-
-  return false;
-}
-
 function formatNameFromEmail(email: string) {
   const localPart = email.split("@")[0] ?? "";
   const normalized = localPart.replace(/[._-]+/g, " ").trim();
@@ -76,58 +46,50 @@ function parseBootstrapAdminEmails() {
     .filter(Boolean);
 }
 
-async function resolveRole(userId: string, email: string): Promise<AppRole> {
-  const supabase = getSupabaseServerClient();
-  if (!supabase) {
-    const bootstrapEmails = parseBootstrapAdminEmails();
-    return bootstrapEmails.includes(email.toLowerCase()) ? "admin" : "teacher";
-  }
+async function resolveAccess(
+  supabase: NonNullable<ReturnType<typeof getSupabaseServerClient>>,
+  userId: string,
+  email: string
+): Promise<{ approved: boolean; role: AppRole }> {
+  const isBootstrapAdmin = parseBootstrapAdminEmails().includes(email.toLowerCase());
 
+  let roleResult;
+  let requestResult;
   try {
-    const { data, error } = await supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle();
-    if (!error && data?.role === "admin") {
-      return "admin";
-    }
-
-    const bootstrapEmails = parseBootstrapAdminEmails();
-    if (bootstrapEmails.includes(email.toLowerCase())) {
-      await supabase.from("user_roles").upsert(
-        {
-          user_id: userId,
-          role: "admin"
-        },
-        { onConflict: "user_id" }
-      );
-
-      return "admin";
-    }
-
-    const requestedRoleResult = await supabase
-      .from("access_requests")
-      .select("desired_role, status")
-      .or(`user_id.eq.${userId},email.eq.${email}`)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (!requestedRoleResult.error && requestedRoleResult.data?.status === "approved") {
-      const fallbackRole: AppRole = requestedRoleResult.data.desired_role === "admin" ? "admin" : "teacher";
-
-      await supabase.from("user_roles").upsert(
-        {
-          user_id: userId,
-          role: fallbackRole
-        },
-        { onConflict: "user_id" }
-      );
-
-      return fallbackRole;
-    }
+    // ponytail: one parallel round trip replaces the old 3-5 sequential auth queries
+    [roleResult, requestResult] = await Promise.all([
+      supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle(),
+      supabase
+        .from("access_requests")
+        .select("status, desired_role")
+        .or(`user_id.eq.${userId},email.eq.${email}`)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    ]);
   } catch {
-    return "teacher";
+    return { approved: isBootstrapAdmin, role: isBootstrapAdmin ? "admin" : "teacher" };
   }
 
-  return "teacher";
+  const request = requestResult.error ? null : requestResult.data;
+  const approved = isBootstrapAdmin || request?.status === "approved";
+  if (!approved) {
+    return { approved: false, role: "teacher" };
+  }
+
+  const storedRole = roleResult.error ? null : roleResult.data?.role;
+  const role: AppRole =
+    storedRole === "admin" || isBootstrapAdmin || (!storedRole && request?.desired_role === "admin")
+      ? "admin"
+      : "teacher";
+
+  // Self-heal a missing role row once (legacy accounts, bootstrap admins) —
+  // never rewrite it on every request
+  if (!storedRole && !roleResult.error) {
+    await supabase.from("user_roles").upsert({ user_id: userId, role }, { onConflict: "user_id" });
+  }
+
+  return { approved: true, role };
 }
 
 export async function getAuthContextFromToken(token: string | undefined): Promise<AuthContext | null> {
@@ -162,12 +124,11 @@ export async function getAuthContextFromToken(token: string | undefined): Promis
     return null;
   }
 
-  const approved = await hasApprovedAccess(user.id, email);
+  const { approved, role } = await resolveAccess(supabase, user.id, email);
   if (!approved) {
     return null;
   }
 
-  const role = await resolveRole(user.id, email);
   const metadata = user.user_metadata as Record<string, unknown> | null;
   const profileName =
     typeof metadata?.full_name === "string"

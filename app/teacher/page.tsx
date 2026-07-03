@@ -3,24 +3,27 @@ import { InsightChip } from "@/components/insight-chip";
 import { LogTable } from "@/components/log-table";
 import { StatCard } from "@/components/stat-card";
 import { requireAuthPage } from "@/lib/auth";
-import { durationHours, buildTeacherHours, buildMethodologyDistribution } from "@/lib/admin-metrics";
+import { durationHours, buildMethodologyDistribution } from "@/lib/admin-metrics";
 import { getTeachingLogsData } from "@/lib/data-access";
 
 export default async function TeacherDashboardPage() {
-  const auth = await requireAuthPage("/teacher");
-  const logResult = await getTeachingLogsData();
+  const [auth, logResult] = await Promise.all([requireAuthPage("/teacher"), getTeachingLogsData()]);
 
-  const personalLogs = logResult.data.filter((entry) => {
-    return entry.teacherName.toLowerCase() === auth.user.name.toLowerCase();
-  });
+  const personalLogs = logResult.data.filter(
+    (entry) =>
+      entry.teacherId === auth.user.id ||
+      entry.teacherName.toLowerCase() === auth.user.name.toLowerCase()
+  );
+
+  const totalHours = Number(personalLogs.reduce((sum, entry) => sum + durationHours(entry.startTime, entry.endTime), 0).toFixed(1));
 
   const metrics = {
     totalClasses: personalLogs.length,
-    totalHours: Number(personalLogs.reduce((sum, entry) => sum + durationHours(entry.startTime, entry.endTime), 0).toFixed(1)),
+    totalHours,
     consistencyScore: personalLogs.length === 0 ? 0 : Math.min(100, 70 + personalLogs.length * 4),
     timeScore: personalLogs.length === 0 ? 0 : Math.min(100, 72 + personalLogs.length * 3),
     diversityScore: personalLogs.length === 0 ? 0 : Math.min(100, 68 + buildMethodologyDistribution(personalLogs).length * 5),
-    workloadScore: personalLogs.length === 0 ? 0 : Math.min(100, 70 + buildTeacherHours(personalLogs).length * 2)
+    workloadScore: personalLogs.length === 0 ? 0 : Math.min(100, 70 + Math.round(totalHours))
   };
 
   return (

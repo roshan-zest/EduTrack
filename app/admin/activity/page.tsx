@@ -6,9 +6,7 @@ import { getTeachingLogsData } from "@/lib/data-access";
 import { ExportButton } from "@/components/export-button";
 
 export default async function AdminActivityPage() {
-  await requireAdminPage();
-
-  const logResult = await getTeachingLogsData();
+  const [, logResult] = await Promise.all([requireAdminPage(), getTeachingLogsData()]);
 
   return (
     <AppShell

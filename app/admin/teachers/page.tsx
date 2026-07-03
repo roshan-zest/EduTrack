@@ -6,12 +6,13 @@ import { getTeachingLogsData, getTeachersData } from "@/lib/data-access";
 import { durationHours, countUniqueTeachers } from "@/lib/admin-metrics";
 
 export default async function AdminTeachersPage() {
-  await requireAdminPage();
+  const [, logResult, teachersResult] = await Promise.all([
+    requireAdminPage(),
+    getTeachingLogsData(),
+    getTeachersData()
+  ]);
 
-  const logResult = await getTeachingLogsData();
   const teachingLogs = logResult.data;
-
-  const teachersResult = await getTeachersData();
   const teachers = teachersResult.data;
 
   const teacherStats = teachers

@@ -1,29 +1,17 @@
 import { TeachingLog } from "@/lib/types";
-import { teachers } from "@/lib/mock-data";
 
 export function durationHours(startTime: string, endTime: string) {
   const [startHour, startMinute] = startTime.split(":").map(Number);
   const [endHour, endMinute] = endTime.split(":").map(Number);
-  return (endHour * 60 + endMinute - (startHour * 60 + startMinute)) / 60;
-}
+  let minutes = endHour * 60 + endMinute - (startHour * 60 + startMinute);
 
-export function buildTeacherHours(logs: TeachingLog[]) {
-  const teacherOnly = teachers.filter((entry) => entry.role === "teacher");
+  // ponytail: legacy rows stored 12-hour times without AM/PM ("12:00"-"01:00"),
+  // so a class crossing noon comes out negative; shifting by 12h recovers the real span
+  if (minutes < 0) {
+    minutes += 12 * 60;
+  }
 
-  return teacherOnly.map((teacher) => {
-    const teacherHours = logs
-      .filter(
-        (entry) =>
-          entry.teacherId === teacher.id ||
-          entry.teacherName.toLowerCase() === teacher.name.toLowerCase()
-      )
-      .reduce((sum, entry) => sum + durationHours(entry.startTime, entry.endTime), 0);
-
-    return {
-      name: teacher.name.split(" ")[1] ?? teacher.name,
-      hours: Number(teacherHours.toFixed(1))
-    };
-  });
+  return minutes / 60;
 }
 
 export function countUniqueTeachers(logs: TeachingLog[]) {

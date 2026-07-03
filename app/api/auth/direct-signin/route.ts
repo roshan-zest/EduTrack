@@ -79,6 +79,7 @@ export async function POST(request: NextRequest) {
 
   const email = parsed.data.email.trim().toLowerCase();
   const password = parsed.data.password;
+
   const anonClient = buildAnonClient();
   if (!anonClient) {
     return NextResponse.json({ success: false, error: "Supabase auth config missing" }, { status: 503 });
@@ -105,7 +106,6 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       );
     }
-
     return NextResponse.json({ success: false, accessStatus: "invalid", error: "Invalid email or password" }, { status: 401 });
   }
 

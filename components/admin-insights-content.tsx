@@ -2,11 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { ActivityTrendChart, MethodologyChart, WorkloadChart } from "@/components/charts";
-import { AlertList } from "@/components/alert-list";
 import { StatCard } from "@/components/stat-card";
 import { ExportButton } from "@/components/export-button";
 import { buildActivityTrend, buildMethodologyDistribution, durationHours } from "@/lib/admin-metrics";
-import { alerts } from "@/lib/mock-data";
 import { TeachingLog, Teacher } from "@/lib/types";
 
 type AdminInsightsContentProps = {
@@ -148,12 +146,12 @@ export function AdminInsightsContent({ teachingLogs, teachers }: AdminInsightsCo
           trend="Coverage map"
         />
         <StatCard
-          label="Active Alerts"
-          value={String(alerts.length)}
-          caption="System-generated warnings requiring admin attention"
-          tone="warning"
-          icon="⚠"
-          trend="Needs review"
+          label="Classes Logged"
+          value={String(filteredLogs.length)}
+          caption="Teaching sessions in the current filtered view"
+          tone="success"
+          icon="▣"
+          trend="Live from logs"
         />
       </section>
 
@@ -161,11 +159,6 @@ export function AdminInsightsContent({ teachingLogs, teachers }: AdminInsightsCo
         <WorkloadChart data={chartData} />
         <MethodologyChart data={methodologyDistribution} />
         <ActivityTrendChart data={activityTrend} />
-      </section>
-
-      <section className="mt-8">
-        <h3 className="mb-4 text-2xl font-semibold tracking-[-0.04em] text-slate-800">Attention Alerts</h3>
-        <AlertList alerts={alerts} />
       </section>
     </>
   );

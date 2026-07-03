@@ -31,16 +31,16 @@ interface TableRow {
 }
 
 const defaultTimeSlots = [
-  { timeRange: "8:30-9:30", type: "class" as RowType },
-  { timeRange: "9:30-10:30", type: "class" as RowType },
+  { timeRange: "08:30-09:30", type: "class" as RowType },
+  { timeRange: "09:30-10:30", type: "class" as RowType },
   { timeRange: "10:30-11:00", type: "break" as RowType },
   { timeRange: "11:00-12:00", type: "class" as RowType },
-  { timeRange: "12:00-1:00", type: "class" as RowType },
-  { timeRange: "1:00-2:00", type: "class" as RowType },
-  { timeRange: "2:00-2:30", type: "break" as RowType },
-  { timeRange: "2:30-3:30", type: "class" as RowType },
-  { timeRange: "3:30-4:30", type: "class" as RowType },
-  { timeRange: "4:30-5:30", type: "class" as RowType }
+  { timeRange: "12:00-13:00", type: "class" as RowType },
+  { timeRange: "13:00-14:00", type: "class" as RowType },
+  { timeRange: "14:00-14:30", type: "break" as RowType },
+  { timeRange: "14:30-15:30", type: "class" as RowType },
+  { timeRange: "15:30-16:30", type: "class" as RowType },
+  { timeRange: "16:30-17:30", type: "class" as RowType }
 ];
 
 function generateInitialRows(): TableRow[] {

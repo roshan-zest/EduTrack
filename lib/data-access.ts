@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { getDevCatalog, getDevLogs, setDevCatalog, addDevLog } from "@/lib/dev-store";
-import { curriculumCatalog, teachingLogs as mockTeachingLogs } from "@/lib/mock-data";
+import { curriculumCatalog } from "@/lib/mock-data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { CurriculumCatalog, TeachingLog, Teacher } from "@/lib/types";
 
@@ -62,6 +62,9 @@ export async function getCurriculumCatalogData(): Promise<{ data: CurriculumCata
     .maybeSingle();
 
   if (error || !data?.catalog) {
+    if (error) {
+      console.error("[data-access] curriculum catalog fetch failed:", error.message);
+    }
     return { data: curriculumCatalog, source: "memory" };
   }
 
@@ -94,6 +97,7 @@ export async function saveCurriculumCatalogData(catalog: CurriculumCatalog): Pro
   );
 
   if (error) {
+    console.error("[data-access] curriculum catalog save failed:", error.message);
     return { data: setDevCatalog(parsedCatalog), source: "memory" };
   }
 
@@ -111,14 +115,16 @@ export async function getTeachingLogsData(): Promise<{ data: TeachingLog[]; sour
     .from("teaching_logs")
     .select("*")
     .order("date", { ascending: false })
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    // ponytail: cap at the 1000 most recent logs so dashboards stay fast as the table
+    // grows; switch to per-page date filters if older history needs to be charted
+    .limit(1000);
 
   if (error || !data) {
+    if (error) {
+      console.error("[data-access] teaching logs fetch failed:", error.message);
+    }
     return { data: getDevLogs(), source: "memory" };
-  }
-
-  if (!data.length) {
-    return { data: mockTeachingLogs, source: "memory" };
   }
 
   return {
@@ -139,14 +145,6 @@ export async function getTeachingLogsData(): Promise<{ data: TeachingLog[]; sour
     })),
     source: "supabase"
   };
-}
-
-export async function createTeachingLogData(payload: unknown): Promise<{
-  data: TeachingLog;
-  source: "supabase" | "memory";
-}> {
-  const result = await createTeachingLogsBulkData([payload]);
-  return { data: result.data[0], source: result.source };
 }
 
 export async function createTeachingLogsBulkData(payloads: unknown[]): Promise<{
@@ -185,8 +183,9 @@ export async function createTeachingLogsBulkData(payloads: unknown[]): Promise<{
   const { error } = await supabase.from("teaching_logs").insert(insertData);
 
   if (error) {
-    nextLogs.forEach((log) => addDevLog(log));
-    return { data: nextLogs, source: "memory" };
+    // Surface the failure instead of silently dropping logs into serverless memory
+    console.error("[data-access] teaching log insert failed:", error.message);
+    throw new Error(`Unable to save teaching logs: ${error.message}`);
   }
 
   return { data: nextLogs, source: "supabase" };
@@ -199,21 +198,25 @@ export async function getTeachersData(): Promise<{ data: Teacher[]; source: "sup
     return { data: [], source: "memory" };
   }
 
-  // Get all approved requests
-  const { data: requests, error: requestsError } = await supabase
-    .from("access_requests")
-    .select("*")
-    .eq("status", "approved");
+  // Get all approved requests and auth users in one parallel round trip
+  const [requestsResult, usersResult] = await Promise.all([
+    supabase.from("access_requests").select("*").eq("status", "approved"),
+    supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  ]);
+
+  const { data: requests, error: requestsError } = requestsResult;
 
   if (requestsError || !requests) {
+    if (requestsError) {
+      console.error("[data-access] access requests fetch failed:", requestsError.message);
+    }
     return { data: [], source: "supabase" };
   }
 
   // Filter for teachers in JS to avoid column-not-found errors if desired_role is missing
   const teacherRequests = requests.filter(req => req.desired_role === "teacher" || !req.desired_role);
 
-  const { data: authData, error: authError } = await supabase.auth.admin.listUsers();
-  const authUsers = authError || !authData?.users ? [] : authData.users;
+  const authUsers = usersResult.error || !usersResult.data?.users ? [] : usersResult.data.users;
 
   const teachers: Teacher[] = teacherRequests.map((req) => {
     const user = authUsers.find((u) => u.email?.toLowerCase() === req.email.toLowerCase());
@@ -249,11 +252,11 @@ export async function getTeachersData(): Promise<{ data: Teacher[]; source: "sup
       name = localPart.replace(/[._-]+/g, " ").trim() || name;
     }
 
+    // Only expose the admin-issued credential (access code / admin-set login),
+    // never a password the user chose themselves
     let extractedPassword = req.access_code;
-    if (user?.user_metadata?.raw_password) {
-      extractedPassword = user.user_metadata.raw_password;
-    } else if (req.note && req.note.startsWith("PWD:")) {
-      extractedPassword = req.note.substring(4);
+    if (typeof user?.user_metadata?.login_password === "string" && user.user_metadata.login_password) {
+      extractedPassword = user.user_metadata.login_password;
     }
 
     // Capitalize name

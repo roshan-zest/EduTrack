@@ -5,9 +5,8 @@ import { requireAdminPage } from "@/lib/auth";
 import { getTeachingLogsData, getTeachersData } from "@/lib/data-access";
 
 export default async function AdminDashboardPage() {
-  await requireAdminPage();
-
-  const [logResult, teachersResult] = await Promise.all([
+  const [, logResult, teachersResult] = await Promise.all([
+    requireAdminPage(),
     getTeachingLogsData(),
     getTeachersData()
   ]);

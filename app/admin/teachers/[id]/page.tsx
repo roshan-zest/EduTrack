@@ -5,16 +5,20 @@ import { TeacherProfileHeader } from "@/components/teacher-profile-header";
 import { StatCard } from "@/components/stat-card";
 import { requireAdminPage } from "@/lib/auth";
 import { getTeachingLogsData, getTeachersData } from "@/lib/data-access";
-import { durationHours, buildTeacherHours, buildMethodologyDistribution } from "@/lib/admin-metrics";
+import { durationHours, buildMethodologyDistribution } from "@/lib/admin-metrics";
 import { MethodologyChart } from "@/components/charts";
 
 import { TeacherActionButtons } from "@/components/teacher-action-buttons";
 
 export default async function TeacherDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await requireAdminPage();
 
-  const { data: realTeachers } = await getTeachersData();
+  const [, { data: realTeachers }, logResult] = await Promise.all([
+    requireAdminPage(),
+    getTeachersData(),
+    getTeachingLogsData()
+  ]);
+
   const teacher = realTeachers.find((t) => t.id === id || t.id === decodeURIComponent(id));
 
   if (!teacher) {
@@ -31,7 +35,6 @@ export default async function TeacherDetailPage({ params }: { params: Promise<{ 
     );
   }
 
-  const logResult = await getTeachingLogsData();
   const allLogs = logResult.data;
 
   const teacherLogs = allLogs
