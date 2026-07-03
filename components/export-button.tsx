@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { TeachingLog } from "@/lib/types";
-import { downloadCSV, generateCSV, generateExportFilename, generateReportHTML, generateReportTitle } from "@/lib/export-utils";
+import { downloadCSV, downloadReportPDF, generateCSV, generateExportFilename } from "@/lib/export-utils";
 
 type ExportButtonProps = {
   logs: TeachingLog[];
@@ -9,16 +10,20 @@ type ExportButtonProps = {
 };
 
 export function ExportButton({ logs, department = "All Departments" }: ExportButtonProps) {
-  const handleExportPDF = () => {
-    const reportWindow = window.open("", "_blank");
-    if (!reportWindow) {
+  const [generating, setGenerating] = useState(false);
+
+  const handleExportPDF = async () => {
+    if (generating) {
       return;
     }
-
-    reportWindow.document.write(generateReportHTML(logs, department));
-    reportWindow.document.close();
-    // Set explicitly too — some browsers use this (not the written <title>) as the print filename
-    reportWindow.document.title = generateReportTitle(department);
+    setGenerating(true);
+    try {
+      await downloadReportPDF(logs, department);
+    } catch {
+      // Swallow: a failed generation just leaves the button ready to retry
+    } finally {
+      setGenerating(false);
+    }
   };
 
   const handleExportCSV = () => {
@@ -29,9 +34,10 @@ export function ExportButton({ logs, department = "All Departments" }: ExportBut
     <div className="flex flex-col gap-2 sm:flex-row">
       <button
         onClick={handleExportPDF}
-        className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-700 active:bg-slate-800"
+        disabled={generating}
+        className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-700 active:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        ⎙ Export PDF Report
+        {generating ? "Generating PDF…" : "⎙ Export PDF Report"}
       </button>
 
       <button

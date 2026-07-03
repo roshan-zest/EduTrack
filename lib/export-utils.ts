@@ -110,17 +110,24 @@ export function generateReportTitle(department: string = "All Departments"): str
   return `edutrack-report${deptSuffix}-${stamp}`;
 }
 
-function escapeHTML(value: string): string {
-  return String(value ?? "").replace(/[&<>"']/g, (ch) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] as string
-  );
-}
+type TeacherStat = { sessions: number; hours: number };
 
-/**
- * Build a printable HTML report. Opened in a new tab, the browser's print
- * dialog turns it into a PDF (zero dependencies, native pagination).
- */
-export function generateReportHTML(logs: TeachingLog[], department: string = "All Departments"): string {
+type ReportModel = {
+  title: string;
+  department: string;
+  period: string;
+  generatedAt: string;
+  totalSessions: number;
+  totalHours: number;
+  avgHours: number;
+  facultySize: number;
+  facultyRows: Array<[string, TeacherStat]>;
+  methodologyRows: Array<[string, number]>;
+  programRows: Array<[string, TeacherStat]>;
+  insights: string[];
+};
+
+function buildReportModel(logs: TeachingLog[], department: string): ReportModel {
   const totalSessions = logs.length;
   const totalHours = logs.reduce((sum, log) => sum + safeDurationHours(log.startTime, log.endTime), 0);
   const avgHours = totalSessions ? totalHours / totalSessions : 0;
@@ -133,9 +140,9 @@ export function generateReportHTML(logs: TeachingLog[], department: string = "Al
     ? `${sortedDates[0]} to ${sortedDates[sortedDates.length - 1]}`
     : "No sessions recorded";
 
-  const faculty = new Map<string, { sessions: number; hours: number }>();
+  const faculty = new Map<string, TeacherStat>();
   const methodology = new Map<string, number>();
-  const programs = new Map<string, { sessions: number; hours: number }>();
+  const programs = new Map<string, TeacherStat>();
 
   for (const log of logs) {
     const hours = safeDurationHours(log.startTime, log.endTime);
@@ -164,17 +171,17 @@ export function generateReportHTML(logs: TeachingLog[], department: string = "Al
   const insights: string[] = [];
   if (topTeacher) {
     insights.push(
-      `<strong>${escapeHTML(topTeacher[0])}</strong> leads faculty workload with ${topTeacher[1].hours.toFixed(1)} hours across ${topTeacher[1].sessions} sessions.`
+      `${topTeacher[0]} leads faculty workload with ${topTeacher[1].hours.toFixed(1)} hours across ${topTeacher[1].sessions} sessions.`
     );
   }
   if (topMethod && totalSessions) {
     insights.push(
-      `<strong>${escapeHTML(topMethod[0])}</strong> is the most used teaching method (${((topMethod[1] / totalSessions) * 100).toFixed(0)}% of sessions).`
+      `${topMethod[0]} is the most used teaching method (${((topMethod[1] / totalSessions) * 100).toFixed(0)}% of sessions).`
     );
   }
   if (topProgram) {
     insights.push(
-      `<strong>${escapeHTML(topProgram[0])}</strong> received the most attention: ${topProgram[1].sessions} sessions, ${topProgram[1].hours.toFixed(1)} hours.`
+      `${topProgram[0]} received the most attention: ${topProgram[1].sessions} sessions, ${topProgram[1].hours.toFixed(1)} hours.`
     );
   }
   if (faculty.size > 1) {
@@ -183,132 +190,183 @@ export function generateReportHTML(logs: TeachingLog[], department: string = "Al
     );
   }
 
-  const generatedAt = new Date().toLocaleString("en-IN", { dateStyle: "long", timeStyle: "short" });
-  const reportTitle = generateReportTitle(department);
+  return {
+    title: generateReportTitle(department),
+    department,
+    period,
+    generatedAt: new Date().toLocaleString("en-IN", { dateStyle: "long", timeStyle: "short" }),
+    totalSessions,
+    totalHours,
+    avgHours,
+    facultySize: faculty.size,
+    facultyRows,
+    methodologyRows,
+    programRows,
+    insights
+  };
+}
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<title>${escapeHTML(reportTitle)}</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  @page { size: A4; margin: 16mm; }
-  body { font-family: "Segoe UI", Arial, sans-serif; color: #1e293b; font-size: 12px; line-height: 1.5; }
-  header { border-bottom: 3px solid #0f172a; padding-bottom: 12px; margin-bottom: 18px; }
-  h1 { font-size: 22px; letter-spacing: -0.02em; }
-  .meta { margin-top: 6px; color: #64748b; font-size: 11px; }
-  .meta strong { color: #334155; }
-  h2 { font-size: 14px; margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #cbd5e1; color: #0f172a; letter-spacing: 0.02em; text-transform: uppercase; }
-  .kpis { display: flex; gap: 10px; margin-top: 4px; }
-  .kpi { flex: 1; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; background: #f8fafc; }
-  .kpi .num { font-size: 20px; font-weight: 700; color: #0f172a; }
-  .kpi .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-top: 2px; }
-  ul.insights { margin: 6px 0 0 16px; }
-  ul.insights li { margin-bottom: 4px; }
-  table { width: 100%; border-collapse: collapse; margin-top: 6px; }
-  th { background: #0f172a; color: #fff; text-align: left; padding: 6px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
-  td { padding: 5px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
-  tr:nth-child(even) td { background: #f8fafc; }
-  td.num, th.num { text-align: right; }
-  section { break-inside: avoid; }
-  section.logs { break-inside: auto; }
-  thead { display: table-header-group; }
-  tr { break-inside: avoid; }
-  footer { margin-top: 24px; padding-top: 8px; border-top: 1px solid #cbd5e1; color: #94a3b8; font-size: 10px; }
-  @media screen { body { max-width: 800px; margin: 24px auto; padding: 0 16px; } }
-</style>
-</head>
-<body>
-  <header>
-    <h1>EduTrack — Faculty Activity Report</h1>
-    <p class="meta">
-      <strong>Department:</strong> ${escapeHTML(department)} &nbsp;·&nbsp;
-      <strong>Period:</strong> ${escapeHTML(period)} &nbsp;·&nbsp;
-      <strong>Generated:</strong> ${escapeHTML(generatedAt)}
-    </p>
-  </header>
+const NAVY: [number, number, number] = [15, 23, 42];
+const SLATE: [number, number, number] = [100, 116, 139];
 
-  <section>
-    <div class="kpis">
-      <div class="kpi"><div class="num">${totalSessions}</div><div class="lbl">Teaching Sessions</div></div>
-      <div class="kpi"><div class="num">${totalHours.toFixed(1)}</div><div class="lbl">Hours Taught</div></div>
-      <div class="kpi"><div class="num">${faculty.size}</div><div class="lbl">Faculty Members</div></div>
-      <div class="kpi"><div class="num">${avgHours.toFixed(1)}</div><div class="lbl">Avg Hours / Session</div></div>
-    </div>
-  </section>
+/**
+ * Generate and directly download a formatted PDF report (no print dialog).
+ * jsPDF + autotable are dynamic-imported so they stay out of the initial bundle.
+ */
+export async function downloadReportPDF(logs: TeachingLog[], department: string = "All Departments"): Promise<void> {
+  const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
+  const autoTable = autoTableModule.default;
 
-  ${insights.length ? `<section><h2>Key Insights</h2><ul class="insights">${insights.map((line) => `<li>${line}</li>`).join("")}</ul></section>` : ""}
+  const model = buildReportModel(logs, department);
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 40;
+  let y = margin;
 
-  <section>
-    <h2>Faculty Workload</h2>
-    <table>
-      <thead><tr><th>Teacher</th><th class="num">Sessions</th><th class="num">Hours</th><th class="num">Avg Hrs / Session</th></tr></thead>
-      <tbody>
-        ${facultyRows
-          .map(
-            ([name, stats]) =>
-              `<tr><td>${escapeHTML(name)}</td><td class="num">${stats.sessions}</td><td class="num">${stats.hours.toFixed(1)}</td><td class="num">${(stats.hours / stats.sessions).toFixed(1)}</td></tr>`
-          )
-          .join("")}
-      </tbody>
-    </table>
-  </section>
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.setTextColor(...NAVY);
+  doc.text("EduTrack - Faculty Activity Report", margin, y);
+  y += 16;
 
-  <section>
-    <h2>Teaching Methodology</h2>
-    <table>
-      <thead><tr><th>Method</th><th class="num">Sessions</th><th class="num">Share</th></tr></thead>
-      <tbody>
-        ${methodologyRows
-          .map(
-            ([name, count]) =>
-              `<tr><td>${escapeHTML(name)}</td><td class="num">${count}</td><td class="num">${totalSessions ? ((count / totalSessions) * 100).toFixed(1) : 0}%</td></tr>`
-          )
-          .join("")}
-      </tbody>
-    </table>
-  </section>
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(...SLATE);
+  doc.text(
+    `Department: ${model.department}   -   Period: ${model.period}   -   Generated: ${model.generatedAt}`,
+    margin,
+    y
+  );
+  y += 6;
+  doc.setDrawColor(...NAVY);
+  doc.setLineWidth(1.5);
+  doc.line(margin, y, pageW - margin, y);
+  y += 18;
 
-  <section>
-    <h2>Program Coverage</h2>
-    <table>
-      <thead><tr><th>Program</th><th class="num">Sessions</th><th class="num">Hours</th></tr></thead>
-      <tbody>
-        ${programRows
-          .map(
-            ([name, stats]) =>
-              `<tr><td>${escapeHTML(name)}</td><td class="num">${stats.sessions}</td><td class="num">${stats.hours.toFixed(1)}</td></tr>`
-          )
-          .join("")}
-      </tbody>
-    </table>
-  </section>
+  const finalY = () => (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
 
-  <section class="logs">
-    <h2>Session Log (${totalSessions})</h2>
-    <table>
-      <thead><tr><th>Date</th><th>Teacher</th><th>Subject</th><th>Program</th><th>Time</th><th class="num">Hrs</th><th>Method</th><th>Topic</th></tr></thead>
-      <tbody>
-        ${logs
-          .map(
-            (log) =>
-              `<tr><td>${escapeHTML(log.date)}</td><td>${escapeHTML(log.teacherName)}</td><td>${escapeHTML(log.subject)}</td><td>${escapeHTML(log.program)}</td><td>${escapeHTML(normalizeTimeValue(log.startTime))}–${escapeHTML(normalizeTimeValue(log.endTime))}</td><td class="num">${safeDurationHours(log.startTime, log.endTime).toFixed(1)}</td><td>${escapeHTML(log.methodology)}</td><td>${escapeHTML(log.topic)}</td></tr>`
-          )
-          .join("")}
-      </tbody>
-    </table>
-  </section>
+  const heading = (text: string) => {
+    if (y > pageH - 90) {
+      doc.addPage();
+      y = margin;
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(...NAVY);
+    doc.text(text.toUpperCase(), margin, y);
+    y += 5;
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, pageW - margin, y);
+    y += 12;
+  };
 
-  <footer>EduTrack · Faculty Activity &amp; Insights System · This report was generated automatically from teaching logs.</footer>
+  autoTable(doc, {
+    startY: y,
+    theme: "grid",
+    margin: { left: margin, right: margin },
+    styles: { fontSize: 9, halign: "center", cellPadding: 6 },
+    headStyles: { fillColor: NAVY, halign: "center" },
+    head: [["Teaching Sessions", "Hours Taught", "Faculty Members", "Avg Hours / Session"]],
+    body: [
+      [
+        String(model.totalSessions),
+        model.totalHours.toFixed(1),
+        String(model.facultySize),
+        model.avgHours.toFixed(1)
+      ]
+    ]
+  });
+  y = finalY() + 22;
 
-  <script>
-    window.addEventListener("load", function () {
-      setTimeout(function () { window.print(); }, 300);
-    });
-  </script>
-</body>
-</html>`;
+  if (model.insights.length) {
+    heading("Key Insights");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(30, 41, 59);
+    for (const line of model.insights) {
+      const wrapped = doc.splitTextToSize(`-  ${line}`, pageW - margin * 2) as string[];
+      if (y + wrapped.length * 12 > pageH - margin) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.text(wrapped, margin, y);
+      y += wrapped.length * 12 + 3;
+    }
+    y += 8;
+  }
+
+  heading("Faculty Workload");
+  autoTable(doc, {
+    startY: y,
+    theme: "striped",
+    margin: { left: margin, right: margin },
+    styles: { fontSize: 8.5, cellPadding: 4 },
+    headStyles: { fillColor: NAVY },
+    columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
+    head: [["Teacher", "Sessions", "Hours", "Avg Hrs / Session"]],
+    body: model.facultyRows.map(([name, stats]) => [
+      name,
+      String(stats.sessions),
+      stats.hours.toFixed(1),
+      (stats.hours / stats.sessions).toFixed(1)
+    ])
+  });
+  y = finalY() + 22;
+
+  heading("Teaching Methodology");
+  autoTable(doc, {
+    startY: y,
+    theme: "striped",
+    margin: { left: margin, right: margin },
+    styles: { fontSize: 8.5, cellPadding: 4 },
+    headStyles: { fillColor: NAVY },
+    columnStyles: { 1: { halign: "right" }, 2: { halign: "right" } },
+    head: [["Method", "Sessions", "Share"]],
+    body: model.methodologyRows.map(([name, count]) => [
+      name,
+      String(count),
+      `${model.totalSessions ? ((count / model.totalSessions) * 100).toFixed(1) : 0}%`
+    ])
+  });
+  y = finalY() + 22;
+
+  heading("Program Coverage");
+  autoTable(doc, {
+    startY: y,
+    theme: "striped",
+    margin: { left: margin, right: margin },
+    styles: { fontSize: 8.5, cellPadding: 4 },
+    headStyles: { fillColor: NAVY },
+    columnStyles: { 1: { halign: "right" }, 2: { halign: "right" } },
+    head: [["Program", "Sessions", "Hours"]],
+    body: model.programRows.map(([name, stats]) => [name, String(stats.sessions), stats.hours.toFixed(1)])
+  });
+  y = finalY() + 22;
+
+  heading(`Session Log (${model.totalSessions})`);
+  autoTable(doc, {
+    startY: y,
+    theme: "striped",
+    margin: { left: margin, right: margin },
+    styles: { fontSize: 7.5, cellPadding: 3, overflow: "linebreak" },
+    headStyles: { fillColor: NAVY },
+    columnStyles: { 5: { halign: "right" } },
+    head: [["Date", "Teacher", "Subject", "Program", "Time", "Hrs", "Method", "Topic"]],
+    body: logs.map((log) => [
+      log.date,
+      log.teacherName,
+      log.subject,
+      log.program,
+      `${normalizeTimeValue(log.startTime)}-${normalizeTimeValue(log.endTime)}`,
+      safeDurationHours(log.startTime, log.endTime).toFixed(1),
+      log.methodology,
+      log.topic
+    ])
+  });
+
+  doc.save(`${model.title}.pdf`);
 }
 
 /**
